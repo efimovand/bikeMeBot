@@ -1,0 +1,8 @@
+aiogram~=3.26.0
+python-dotenv~=1.2.2
+SQLAlchemy~=2.0.48
+alembic~=1.18.4
+asyncpg~=0.31.0
+PyAutoGUI~=0.9.54
+PyGetWindow~=0.0.9
+pyperclip~=1.11.0

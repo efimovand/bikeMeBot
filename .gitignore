@@ -1,0 +1,14 @@
+.venv/
+
+.env
+
+__pycache__/
+*.pyc
+*.pyo
+
+media/users/
+
+*.db
+
+.DS_Store
+Thumbs.db
