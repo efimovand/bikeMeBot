@@ -41,6 +41,19 @@ class HelmetColorCallback(CallbackData, prefix="helmet_color"):
     color_id: int
 
 
+class JacketBrandCallback(CallbackData, prefix="jacket_brand"):
+    brand: str
+
+
+class JacketModelCallback(CallbackData, prefix="jacket_model"):
+    jacket_id: int
+
+
+class JacketColorCallback(CallbackData, prefix="jacket_color"):
+    jacket_id: int
+    color_id: int
+
+
 class OnboardingContinueCallback(CallbackData, prefix="onb_cont"):
     action: str  # "helmet" | "photos"
 
@@ -61,6 +74,7 @@ def policy_keyboard() -> InlineKeyboardMarkup:
 def main_menu_keyboard(
     has_bike: bool,
     has_helmet: bool,
+    has_jacket: bool,
     has_photos: bool,
 ) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
@@ -71,19 +85,16 @@ def main_menu_keyboard(
     )
 
     if has_helmet:
-        builder.button(
-            text="🪖 Изменить шлем",
-            callback_data=MenuCallback(action="helmet")
-        )
-        builder.button(
-            text="❌ Убрать шлем",
-            callback_data=MenuCallback(action="helmet_remove")
-        )
+        builder.button(text="🪖 Изменить шлем", callback_data=MenuCallback(action="helmet"))
+        builder.button(text="❌ Убрать шлем", callback_data=MenuCallback(action="helmet_remove"))
     else:
-        builder.button(
-            text="🪖 Выбрать шлем",
-            callback_data=MenuCallback(action="helmet")
-        )
+        builder.button(text="🪖 Выбрать шлем", callback_data=MenuCallback(action="helmet"))
+
+    if has_jacket:
+        builder.button(text="🧥 Изменить куртку", callback_data=MenuCallback(action="jacket"))
+        builder.button(text="❌ Убрать куртку", callback_data=MenuCallback(action="jacket_remove"))
+    else:
+        builder.button(text="🧥 Выбрать куртку", callback_data=MenuCallback(action="jacket"))
 
     builder.button(
         text="📷 Изменить фото" if has_photos else "📷 Загрузить фото",
@@ -91,12 +102,9 @@ def main_menu_keyboard(
     )
 
     if has_bike and has_photos:
-        builder.button(
-            text="✨ Сгенерировать",
-            callback_data=MenuCallback(action="generate")
-        )
+        builder.button(text="✨ Сгенерировать", callback_data=MenuCallback(action="generate"))
 
-    builder.adjust(1, 2 if has_helmet else 1, 1, 1)
+    builder.adjust(1, 2 if has_helmet else 1, 2 if has_jacket else 1, 1, 1)
     return builder.as_markup()
 
 
@@ -162,6 +170,28 @@ def helmet_colors_keyboard(colors: list, helmet_id: int) -> InlineKeyboardMarkup
         builder.button(
             text=color.name,
             callback_data=HelmetColorCallback(helmet_id=helmet_id, color_id=color.id)
+        )
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def jacket_models_keyboard(jackets: list) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for jacket in jackets:
+        builder.button(
+            text=jacket.model,
+            callback_data=JacketModelCallback(jacket_id=jacket.id)
+        )
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def jacket_colors_keyboard(colors: list, jacket_id: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for color in colors:
+        builder.button(
+            text=color.name,
+            callback_data=JacketColorCallback(jacket_id=jacket_id, color_id=color.id)
         )
     builder.adjust(1)
     return builder.as_markup()

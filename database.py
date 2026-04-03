@@ -7,9 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import selectinload
 
 from models import (
-    Account, Bike, BikeColor, BikeFile,
-    Generation, Helmet, HelmetColor, HelmetFile,
-    Location, User, UserPhotoset, DictionaryPrompt,
+    Account, Generation, Location, DictionaryPrompt,
+    User, UserPhotoset,
+    Bike, BikeColor, BikeFile,
+    Helmet, HelmetColor, HelmetFile,
+    Jacket, JacketColor, JacketFile,
 )
 
 
@@ -51,6 +53,8 @@ _USER_OPTIONS = [
     selectinload(User.bike_file).selectinload(BikeFile.color),
     selectinload(User.helmet_file).selectinload(HelmetFile.helmet),
     selectinload(User.helmet_file).selectinload(HelmetFile.color),
+    selectinload(User.jacket_file).selectinload(JacketFile.jacket),
+    selectinload(User.jacket_file).selectinload(JacketFile.color),
     selectinload(User.photoset),
 ]
 
@@ -303,6 +307,78 @@ async def clear_user_helmet_file(tg_id: int) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Jacket
+# ---------------------------------------------------------------------------
+
+async def get_jacket_brands() -> list[str]:
+    async with get_session() as session:
+        result = await session.execute(
+            select(Jacket.brand).distinct().order_by(Jacket.brand)
+        )
+        return list(result.scalars().all())
+
+
+async def get_jacket_models(brand: str) -> list[Jacket]:
+    async with get_session() as session:
+        result = await session.execute(
+            select(Jacket).where(Jacket.brand == brand).order_by(Jacket.model)
+        )
+        return list(result.scalars().all())
+
+
+async def get_jacket_colors(jacket_id: int) -> list[JacketColor]:
+    async with get_session() as session:
+        result = await session.execute(
+            select(JacketColor)
+            .where(
+                (JacketColor.jacket_id == jacket_id) | (JacketColor.jacket_id.is_(None))
+            )
+            .order_by(JacketColor.name)
+        )
+        return list(result.scalars().all())
+
+
+async def get_jacket_file(jacket_id: int, color_id: int) -> JacketFile | None:
+    async with get_session() as session:
+        result = await session.execute(
+            select(JacketFile)
+            .where(JacketFile.jacket_id == jacket_id, JacketFile.color_id == color_id)
+            .options(
+                selectinload(JacketFile.jacket),
+                selectinload(JacketFile.color),
+            )
+        )
+        return result.scalar_one_or_none()
+
+
+async def get_jacket_file_by_id(jacket_file_id: int) -> JacketFile | None:
+    async with get_session() as session:
+        result = await session.execute(
+            select(JacketFile)
+            .where(JacketFile.id == jacket_file_id)
+            .options(
+                selectinload(JacketFile.jacket),
+                selectinload(JacketFile.color),
+            )
+        )
+        return result.scalar_one_or_none()
+
+
+async def update_user_jacket_file(tg_id: int, jacket_file_id: int) -> None:
+    async with get_session() as session:
+        await session.execute(
+            update(User).where(User.tg_id == tg_id).values(jacket_file_id=jacket_file_id)
+        )
+
+
+async def clear_user_jacket_file(tg_id: int) -> None:
+    async with get_session() as session:
+        await session.execute(
+            update(User).where(User.tg_id == tg_id).values(jacket_file_id=None)
+        )
+
+
+# ---------------------------------------------------------------------------
 # Account (ротация токенов Gemini)
 # ---------------------------------------------------------------------------
 
@@ -333,6 +409,7 @@ async def create_generation(
     account_id: int,
     bike_file: BikeFile,
     helmet_file_id: int | None = None,
+    jacket_file_id: int | None = None,
 ) -> Generation:
     async with get_session() as session:
         generation = Generation(
@@ -340,12 +417,12 @@ async def create_generation(
             account_id=account_id,
             bike_file_id=bike_file.id,
             helmet_file_id=helmet_file_id,
+            jacket_file_id=jacket_file_id,
             status="pending",
         )
         session.add(generation)
         await session.flush()
         return generation
-
 
 async def update_generation_status(generation_id: int, status: str) -> None:
     """status: 'success' | 'failed'"""

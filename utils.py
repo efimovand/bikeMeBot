@@ -26,6 +26,11 @@ def config_text(user: User) -> str:
     else:
         helmet_line = "🪖 Шлем: <b>не выбран</b>"
 
+    if user.jacket_file:
+        jacket_line = f"🧥 Куртка: <b>{user.jacket_file.jacket.brand} {user.jacket_file.jacket.model} / {user.jacket_file.color.name}</b>"
+    else:
+        jacket_line = "🧥 Куртка: <b>не выбрана</b>"
+
     photos_line = (
         "📷 Ваши фото: ✅"
         if photoset_is_complete(user.photoset)
@@ -36,6 +41,6 @@ def config_text(user: User) -> str:
         "⚙️ <b>Текущая конфигурация:</b>\n\n"
         f"{bike_line}\n"
         f"{helmet_line}\n"
-        f"🧥 Куртка: <b>не выбрана</b>\n"
+        f"{jacket_line}\n"
         f"{photos_line}"
     )

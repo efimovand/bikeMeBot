@@ -22,4 +22,10 @@ class PhotoStates(StatesGroup):
     waiting_front = State()
     waiting_side = State()
     waiting_body = State()
+
+
+class JacketStates(StatesGroup):
+    choosing_brand = State()
+    choosing_model = State()
+    choosing_color = State()
     

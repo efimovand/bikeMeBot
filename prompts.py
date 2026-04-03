@@ -4,6 +4,7 @@ import database as db
 async def make_final_prompt(
     bike_file_id: int,
     helmet_file_id: int | None = None,
+    jacket_file_id: int | None = None,
 ) -> str:
     # --- Байк + локация ---
     bike_file = await db.get_bike_file_by_id(bike_file_id)
@@ -23,15 +24,29 @@ async def make_final_prompt(
         helmet_dict_text = helmet_dict_prompts[0].text
         helmet_prompt = helmet_dict_text.format(helmet_prompt=raw_helmet_prompt) if raw_helmet_prompt else helmet_dict_text.format(helmet_prompt="")
 
+    # --- Куртка (опционально) ---
+    has_jacket = jacket_file_id is not None
+    jacket_prompt = "IMPORTANT: The person must be shown without a motorcycle jacket, in their own clothing." if not has_jacket else ""
+    if has_jacket:
+        jacket_file = await db.get_jacket_file_by_id(jacket_file_id)
+        raw_jacket_prompt = jacket_file.jacket.prompt
+
+        jacket_dict_prompts = await db.get_prompts_by_type("jacket")
+        jacket_dict_text = jacket_dict_prompts[0].text
+        jacket_prompt = jacket_dict_text.format(jacket_prompt=raw_jacket_prompt) if raw_jacket_prompt else jacket_dict_text.format(jacket_prompt="")
+
     # --- Финальный промпт ---
-    helmet_photo_mention = "and additional photo of a motorcycle helmet." if has_helmet else ""
+    helmet_photo_mention = ", a photo of a motorcycle helmet" if has_helmet else ""
+    jacket_photo_mention = ", a photo of a motorcycle jacket" if has_jacket else ""
 
     default = await db.get_default_prompt()
     final_prompt = default.text.format(
         helmet_photo_mention=helmet_photo_mention,
+        jacket_photo_mention=jacket_photo_mention,
         bike_prompt=bike_prompt,
         location_prompt=location_prompt,
         helmet_prompt=helmet_prompt,
+        jacket_prompt=jacket_prompt,
     )
 
     return final_prompt

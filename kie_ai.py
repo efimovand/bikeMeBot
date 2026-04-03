@@ -180,6 +180,7 @@ async def generate_for_user(
     api_key: str,
     bike_file_path: str | Path,
     helmet_file_path: Optional[str | Path] = None,
+    jacket_file_path: Optional[str | Path] = None,
     prompt: str = "",
     aspect_ratio: str = "1:1",
     resolution: str = "1K",
@@ -202,6 +203,8 @@ async def generate_for_user(
     ]
     if helmet_file_path:
         items.append((helmet_file_path, None))
+    if jacket_file_path:
+        items.append((jacket_file_path, None))
 
     logger.info("generate_for_user generation_id=%s tg_id=%s: uploading %d files...", generation_id, tg_id, len(items))
 

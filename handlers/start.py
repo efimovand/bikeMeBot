@@ -38,6 +38,7 @@ async def send_main_menu(message_or_query, user, state: FSMContext):
     keyboard = main_menu_keyboard(
         has_bike=user.bike_file_id is not None,
         has_helmet=user.helmet_file_id is not None,
+        has_jacket=user.jacket_file_id is not None,
         has_photos=db.photoset_is_complete(user.photoset),
     )
 
@@ -49,7 +50,8 @@ async def send_main_menu(message_or_query, user, state: FSMContext):
 
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
-    if message.from_user.id != 370377802:  # Дебаг
+    if message.from_user.id != 370377802:  # TODO: Дебаг
+        await message.answer('Вам недоступен функционал BikeMeBot. Обратитесь к @efimov_and')
         return
 
     user, created = await db.get_or_create_user(
