@@ -67,17 +67,30 @@ async def on_jacket_color(query: CallbackQuery, callback_data: JacketColorCallba
     await db.update_user_jacket_file(query.from_user.id, jacket_file.id)
 
     user = await db.get_user_by_tg_id(query.from_user.id)
-    await state.clear()
-    await query.message.edit_text(
-        config_text(user),
-        reply_markup=main_menu_keyboard(
-            has_bike=user.bike_file_id is not None,
-            has_helmet=user.helmet_file_id is not None,
-            has_jacket=True,
-            has_photos=photoset_is_complete(user.photoset),
-        ),
-        parse_mode="HTML",
-    )
+    data = await state.get_data()
+    onboarding = data.get("onboarding", False)
+
+    if onboarding:
+        await state.set_state(PhotoStates.waiting_front)
+        await query.message.edit_text(
+            f"✅ Куртка выбрана: <b>{jacket_file.jacket.brand} {jacket_file.jacket.model} / {jacket_file.color.name}</b>\n\n"
+            "📸 <b>Шаг 1 из 3 — Фото анфас</b>\n\n"
+            "Сфотографируйся прямо, смотри в камеру, лицо и плечи должны быть хорошо видны.\n\n"
+            "Отправь фото 👇",
+            parse_mode="HTML",
+        )
+    else:
+        await state.clear()
+        await query.message.edit_text(
+            config_text(user),
+            reply_markup=main_menu_keyboard(
+                has_bike=user.bike_file_id is not None,
+                has_helmet=user.helmet_file_id is not None,
+                has_jacket=True,
+                has_photos=photoset_is_complete(user.photoset),
+            ),
+            parse_mode="HTML",
+        )
 
 
 @router.callback_query(MenuCallback.filter(F.action == "jacket_remove"))

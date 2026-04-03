@@ -7,13 +7,14 @@ import database as db
 from keyboards import (
     BikeBrandCallback,
     HelmetBrandCallback,
+    JacketBrandCallback,
     OnboardingContinueCallback,
     PolicyCallback,
     brands_keyboard,
     main_menu_keyboard,
     policy_keyboard,
 )
-from states import BikeStates, HelmetStates, OnboardingStates, PhotoStates
+from states import BikeStates, HelmetStates, JacketStates, OnboardingStates, PhotoStates
 from utils import config_text
 
 
@@ -113,9 +114,24 @@ async def onboarding_add_helmet(query: CallbackQuery, state: FSMContext):
     )
 
 
+@router.callback_query(OnboardingContinueCallback.filter(F.action == "jacket"), OnboardingStates.after_bike)
+async def onboarding_add_jacket(query: CallbackQuery, state: FSMContext):
+    await query.answer()
+
+    brands = await db.get_jacket_brands()
+    await state.update_data(onboarding=True)
+    await state.set_state(JacketStates.choosing_brand)
+
+    await query.message.edit_text(
+        "🧥 <b>Выберите бренд куртки:</b>",
+        reply_markup=brands_keyboard(brands, JacketBrandCallback),
+        parse_mode="HTML",
+    )
+
+
 @router.callback_query(OnboardingContinueCallback.filter(F.action == "photos"), OnboardingStates.after_bike)
 async def onboarding_go_photos(query: CallbackQuery, state: FSMContext):
-    """Пользователь пропускает шлем и переходит к фото."""
+    """Пользователь пропускает экип и переходит к фото."""
     await query.answer()
     await state.update_data(onboarding=True)
     await state.set_state(PhotoStates.waiting_front)

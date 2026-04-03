@@ -114,7 +114,10 @@ def after_bike_onboarding_keyboard() -> InlineKeyboardMarkup:
         text="🪖 Добавить шлем",
         callback_data=OnboardingContinueCallback(action="helmet")
     )
-    # Сюда в будущем: куртка, мотоботы и т.д.
+    builder.button(
+        text="🧥 Добавить куртку",
+        callback_data=OnboardingContinueCallback(action="jacket")
+    )
     builder.button(
         text="➡️ Продолжить",
         callback_data=OnboardingContinueCallback(action="photos")

@@ -90,6 +90,7 @@ async def on_helmet_color(query: CallbackQuery, callback_data: HelmetColorCallba
             reply_markup=main_menu_keyboard(
                 has_bike=user.bike_file_id is not None,
                 has_helmet=True,
+                has_jacket=user.jacket_file_id is not None,
                 has_photos=photoset_is_complete(user.photoset),
             ),
             parse_mode="HTML",
@@ -105,7 +106,8 @@ async def on_helmet_remove(query: CallbackQuery, state: FSMContext):
         config_text(user),
         reply_markup=main_menu_keyboard(
             has_bike=user.bike_file_id is not None,
-            has_helmet=False,
+            has_helmet=True,
+            has_jacket=user.jacket_file_id is not None,
             has_photos=photoset_is_complete(user.photoset),
         ),
         parse_mode="HTML",

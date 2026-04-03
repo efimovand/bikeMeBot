@@ -88,6 +88,7 @@ async def on_bike_color(query: CallbackQuery, callback_data: BikeColorCallback, 
             reply_markup=main_menu_keyboard(
                 has_bike=True,
                 has_helmet=user.helmet_file_id is not None,
+                has_jacket=user.jacket_file_id is not None,
                 has_photos=photoset_is_complete(user.photoset),
             ),
             parse_mode="HTML",
