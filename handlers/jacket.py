@@ -1,7 +1,8 @@
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, FSInputFile
 import database as db
+from collage import get_or_build_collage
 from keyboards import (
     JacketBrandCallback, JacketColorCallback, JacketModelCallback,
     MenuCallback, brands_keyboard, jacket_colors_keyboard,
@@ -31,15 +32,24 @@ async def on_jacket_menu(query: CallbackQuery, state: FSMContext):
 @router.callback_query(JacketBrandCallback.filter(), JacketStates.choosing_brand)
 async def on_jacket_brand(query: CallbackQuery, callback_data: JacketBrandCallback, state: FSMContext):
     await query.answer()
-    jackets = await db.get_jacket_models(callback_data.brand)
+    brand = callback_data.brand
 
-    await state.update_data(brand=callback_data.brand)
+    collage_path = await get_or_build_collage("jacket", brand)
+    jackets = await db.get_jacket_models(brand)
+
+    await state.update_data(brand=brand)
     await state.set_state(JacketStates.choosing_model)
-    await query.message.edit_text(
-        f"🧥 <b>{callback_data.brand}</b> — выберите модель:",
+
+    await query.message.delete()
+
+    photo_msg = await query.message.answer_photo(photo=FSInputFile(collage_path))
+    text_msg = await query.message.answer(
+        f"🧥 <b>{brand}</b> — выберите модель:",
         reply_markup=jacket_models_keyboard(jackets),
         parse_mode="HTML",
     )
+
+    await state.update_data(collage_msg_id=photo_msg.message_id, menu_msg_id=text_msg.message_id)
 
 
 @router.callback_query(JacketModelCallback.filter(), JacketStates.choosing_model)
@@ -49,8 +59,14 @@ async def on_jacket_model(query: CallbackQuery, callback_data: JacketModelCallba
 
     await state.update_data(jacket_id=callback_data.jacket_id)
     await state.set_state(JacketStates.choosing_color)
+
+    data = await state.get_data()
+    collage_msg_id = data.get("collage_msg_id")
+    if collage_msg_id:
+        await query.bot.delete_message(query.message.chat.id, collage_msg_id)
+
     await query.message.edit_text(
-        "🎨 Выберите расцветку куртки:",
+        "🎨 Выберите расцветку:",
         reply_markup=jacket_colors_keyboard(colors, callback_data.jacket_id),
         parse_mode="HTML",
     )

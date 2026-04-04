@@ -1,8 +1,9 @@
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, FSInputFile
 
 import database as db
+from collage import get_or_build_collage
 from keyboards import (
     HelmetBrandCallback, HelmetColorCallback, HelmetModelCallback,
     MenuCallback, brands_keyboard, helmet_colors_keyboard,
@@ -11,6 +12,7 @@ from keyboards import (
 from states import HelmetStates, PhotoStates
 from utils import config_text
 from database import photoset_is_complete
+
 
 router = Router()
 
@@ -31,15 +33,24 @@ async def on_helmet_menu(query: CallbackQuery, state: FSMContext):
 @router.callback_query(HelmetBrandCallback.filter(), HelmetStates.choosing_brand)
 async def on_helmet_brand(query: CallbackQuery, callback_data: HelmetBrandCallback, state: FSMContext):
     await query.answer()
-    helmets = await db.get_helmet_models(callback_data.brand)
+    brand = callback_data.brand
 
-    await state.update_data(brand=callback_data.brand)
+    collage_path = await get_or_build_collage("helmet", brand)
+    helmets = await db.get_helmet_models(brand)
+
+    await state.update_data(brand=brand)
     await state.set_state(HelmetStates.choosing_model)
-    await query.message.edit_text(
-        f"🪖 <b>{callback_data.brand}</b> — выберите модель:",
+
+    await query.message.delete()
+
+    photo_msg = await query.message.answer_photo(photo=FSInputFile(collage_path))
+    text_msg = await query.message.answer(
+        f"🪖 <b>{brand}</b> — выберите модель:",
         reply_markup=helmet_models_keyboard(helmets),
         parse_mode="HTML",
     )
+
+    await state.update_data(collage_msg_id=photo_msg.message_id, menu_msg_id=text_msg.message_id)
 
 
 @router.callback_query(HelmetModelCallback.filter(), HelmetStates.choosing_model)
@@ -49,8 +60,14 @@ async def on_helmet_model(query: CallbackQuery, callback_data: HelmetModelCallba
 
     await state.update_data(helmet_id=callback_data.helmet_id)
     await state.set_state(HelmetStates.choosing_color)
+
+    data = await state.get_data()
+    collage_msg_id = data.get("collage_msg_id")
+    if collage_msg_id:
+        await query.bot.delete_message(query.message.chat.id, collage_msg_id)
+
     await query.message.edit_text(
-        "🎨 Выберите расцветку шлема:",
+        "🎨 Выберите расцветку:",
         reply_markup=helmet_colors_keyboard(colors, callback_data.helmet_id),
         parse_mode="HTML",
     )
@@ -64,7 +81,6 @@ async def on_helmet_color(query: CallbackQuery, callback_data: HelmetColorCallba
         return
 
     await query.answer()
-
     await db.update_user_helmet_file(query.from_user.id, helmet_file.id)
 
     user = await db.get_user_by_tg_id(query.from_user.id)
@@ -72,7 +88,6 @@ async def on_helmet_color(query: CallbackQuery, callback_data: HelmetColorCallba
     onboarding = data.get("onboarding", False)
 
     if onboarding:
-        # Онбординг: после шлема сразу переходим к загрузке фото
         await state.set_state(PhotoStates.waiting_front)
         await query.message.edit_text(
             f"✅ Мотоцикл выбран: <b>{user.bike_file.bike.brand} {user.bike_file.bike.model} / {user.bike_file.color.name}</b>\n"
@@ -83,7 +98,6 @@ async def on_helmet_color(query: CallbackQuery, callback_data: HelmetColorCallba
             parse_mode="HTML",
         )
     else:
-        # Обычный режим — главное меню
         await state.clear()
         await query.message.edit_text(
             config_text(user),

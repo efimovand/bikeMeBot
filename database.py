@@ -11,7 +11,7 @@ from models import (
     User, UserPhotoset,
     Bike, BikeColor, BikeFile,
     Helmet, HelmetColor, HelmetFile,
-    Jacket, JacketColor, JacketFile,
+    Jacket, JacketColor, JacketFile, Collage,
 )
 
 
@@ -466,3 +466,45 @@ async def get_default_prompt() -> DictionaryPrompt | None:
             .limit(1)
         )
         return result.scalar_one_or_none()
+
+
+# ---------------------------------------------------------------------------
+# Collage
+# ---------------------------------------------------------------------------
+
+async def get_collage_state(type: str, brand: str):
+    """
+    Один запрос: текущее кол-во моделей + закэшированные данные.
+    Возвращает (current_count, cached_file | None, cached_count | None)
+    """
+    model_map = {"helmet": Helmet, "jacket": Jacket}
+    Model = model_map[type]
+
+    async with get_session() as session:
+        result = await session.execute(
+            select(
+                func.count(Model.id).label("current_count"),
+                Collage.file,
+                Collage.models_count,
+            )
+            .where(Model.brand == brand)
+            .outerjoin(
+                Collage,
+                (Collage.type == type) & (Collage.brand == brand)
+            )
+            .group_by(Collage.file, Collage.models_count)
+        )
+        return result.one()  # (current_count, file | None, models_count | None)
+
+
+async def upsert_collage(type: str, brand: str, file_path: str, count: int) -> None:
+    async with get_session() as session:
+        result = await session.execute(
+            select(Collage).where(Collage.type == type, Collage.brand == brand)
+        )
+        cached = result.scalar_one_or_none()
+        if cached:
+            cached.file = file_path
+            cached.models_count = count
+        else:
+            session.add(Collage(type=type, brand=brand, file=file_path, models_count=count))
