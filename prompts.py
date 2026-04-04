@@ -5,6 +5,7 @@ async def make_final_prompt(
     bike_file_id: int,
     helmet_file_id: int | None = None,
     jacket_file_id: int | None = None,
+    glove_file_id: int | None = None,
 ) -> str:
     # --- Байк + локация ---
     bike_file = await db.get_bike_file_by_id(bike_file_id)
@@ -34,6 +35,19 @@ async def make_final_prompt(
         jacket_dict_prompts = await db.get_prompts_by_type("jacket")
         jacket_dict_text = jacket_dict_prompts[0].text
         jacket_prompt = jacket_dict_text.format(jacket_prompt=raw_jacket_prompt) if raw_jacket_prompt else jacket_dict_text.format(jacket_prompt="")
+
+    # --- Перчатки (опционально) ---
+    has_glove = glove_file_id is not None
+    glove_prompt = "IMPORTANT: The person must be shown without motorcycle gloves, bare hands." if not has_glove else ""
+    if has_glove:
+        glove_file = await db.get_glove_file_by_id(glove_file_id)
+        raw_glove_prompt = glove_file.glove.prompt
+        glove_dict_prompts = await db.get_prompts_by_type("glove")
+        glove_dict_text = glove_dict_prompts[0].text
+        glove_prompt = glove_dict_text.format(
+            glove_prompt=raw_glove_prompt) if raw_glove_prompt else glove_dict_text.format(glove_prompt="")
+
+    glove_photo_mention = ", a photo of motorcycle gloves" if has_glove else ""
 
     # --- Финальный промпт ---
     helmet_photo_mention = ", a photo of a motorcycle helmet" if has_helmet else ""

@@ -1,14 +1,11 @@
 import asyncio
 from pathlib import Path
 from io import BytesIO
+from typing import NamedTuple
 
 import requests
 from PIL import Image, ImageDraw, ImageFont
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, selectinload
 
-from models import Helmet, Jacket
-from config import settings
 import database as db
 
 
@@ -37,7 +34,7 @@ FONT_REGULAR_PATH = None
 TYPE_CONFIG = {
     "helmet": {"dir": BASE_DIR / "collages/helmets", "prefix": "helmets"},
     "jacket": {"dir": BASE_DIR / "collages/jackets", "prefix": "jackets"},
-    # "glove":  {"dir": BASE_DIR / "collages/gloves",  "prefix": "gloves"},
+    "glove":  {"dir": BASE_DIR / "collages/gloves",  "prefix": "gloves"},
     # "boot":   {"dir": BASE_DIR / "collages/boots",   "prefix": "boots"},
 }
 
@@ -51,6 +48,7 @@ def _load_font(path, size):
         return ImageFont.truetype(path, size) if path else ImageFont.load_default()
     except OSError:
         return ImageFont.load_default()
+
 
 font_brand = _load_font(FONT_BOLD_PATH, 10)
 font_model = _load_font(FONT_REGULAR_PATH, 13)
@@ -76,7 +74,7 @@ def load_image(path: str) -> Image.Image:
 # RENDER
 # -------------------------------------------------------------------
 
-def _fill_crop(img: Image.Image, w: int, h: int) -> Image.Image:
+def _fit_on_white(img: Image.Image, w: int, h: int) -> Image.Image:
     ratio = min(w / img.width, h / img.height) * 0.85
     nw, nh = int(img.width * ratio), int(img.height * ratio)
     img = img.resize((nw, nh), Image.LANCZOS)
@@ -103,7 +101,7 @@ def _draw_card(model_name: str, brand_name: str, photo_path: str | None) -> Imag
     if photo_path:
         try:
             photo = load_image(photo_path).convert("RGBA")
-            photo = _fill_crop(photo, CARD_SIZE, photo_h)
+            photo = _fit_on_white(photo, CARD_SIZE, photo_h)
             card.paste(photo, (0, 0))
         except Exception as e:
             print("Image error:", e)
@@ -135,41 +133,9 @@ def _draw_card(model_name: str, brand_name: str, photo_path: str | None) -> Imag
 # DTO
 # -------------------------------------------------------------------
 
-class ItemView:
-    def __init__(self, model: str, photo_path: str | None):
-        self.model = model
-        self.photo_path = photo_path
-
-
-# -------------------------------------------------------------------
-# DB → DTO (по типу)
-# -------------------------------------------------------------------
-
-def _fetch_items(session: Session, type: str, brand: str) -> list[ItemView]:
-    if type == "helmet":
-        rows = (
-            session.query(Helmet)
-            .options(selectinload(Helmet.files))
-            .filter(Helmet.brand == brand)
-            .order_by(Helmet.model)
-            .all()
-        )
-        return [ItemView(h.model, h.files[0].file if h.files else None) for h in rows]
-
-    if type == "jacket":
-        rows = (
-            session.query(Jacket)
-            .options(selectinload(Jacket.files))
-            .filter(Jacket.brand == brand)
-            .order_by(Jacket.model)
-            .all()
-        )
-        return [ItemView(j.model, j.files[0].file if j.files else None) for j in rows]
-
-    # if type == "glove": ...
-    # if type == "boot":  ...
-
-    raise ValueError(f"Unknown collage type: {type}")
+class ItemView(NamedTuple):
+    model: str
+    photo_path: str | None
 
 
 # -------------------------------------------------------------------
@@ -211,13 +177,13 @@ async def get_or_build_collage(type: str, brand: str) -> Path:
         if path.exists():
             return path
 
-    sync_engine = create_engine(settings.database_url_sync)
+    # Данные достаём здесь, через уже существующий async-коннекшн
+    raw_items = await db.get_items_for_collage(type, brand)
+    items = [ItemView(model, photo) for model, photo in raw_items]
 
     def _generate():
-        with Session(sync_engine) as session:
-            items = _fetch_items(session, type, brand)
         return _build_collage(items, brand, type)
 
-    path = await asyncio.get_event_loop().run_in_executor(None, _generate)
+    path = await asyncio.get_running_loop().run_in_executor(None, _generate)
     await db.upsert_collage(type, brand, str(path), current_count)
     return path

@@ -4,7 +4,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.fsm.storage.memory import MemoryStorage
 from config import settings
-from handlers import bike, helmet, jacket, photos, start, generate
+from handlers import bike, helmet, jacket, glove, photos, start, generate
 
 
 logging.basicConfig(
@@ -22,6 +22,7 @@ async def main():
     dp.include_router(bike.router)
     dp.include_router(helmet.router)
     dp.include_router(jacket.router)
+    dp.include_router(glove.router)
     dp.include_router(photos.router)
     dp.include_router(generate.router)
 

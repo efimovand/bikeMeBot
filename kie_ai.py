@@ -181,6 +181,7 @@ async def generate_for_user(
     bike_file_path: str | Path,
     helmet_file_path: Optional[str | Path] = None,
     jacket_file_path: Optional[str | Path] = None,
+    glove_file_path: Optional[str | Path] = None,
     prompt: str = "",
     aspect_ratio: str = "1:1",
     resolution: str = "1K",
@@ -205,6 +206,8 @@ async def generate_for_user(
         items.append((helmet_file_path, None))
     if jacket_file_path:
         items.append((jacket_file_path, None))
+    if glove_file_path:
+        items.append((glove_file_path, None))
 
     logger.info("generate_for_user generation_id=%s tg_id=%s: uploading %d files...", generation_id, tg_id, len(items))
 
@@ -241,6 +244,7 @@ if __name__ == "__main__":
             tg_id=0,
             bike_file_path=BASE_TEST / "bikes/ducati/panigalev2/panigalev2_red.jpg",
             helmet_file_path=BASE_TEST / "helmets/ls2/xforce/xforce_black.jpg",
+            glove_file_path=BASE_TEST / "gloves/alpinestars/name/name_black.jpg",
             prompt=prompt,
             aspect_ratio="1:1",
             resolution="1K",

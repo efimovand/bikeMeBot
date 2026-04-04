@@ -7,11 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import selectinload
 
 from models import (
-    Account, Generation, Location, DictionaryPrompt,
+    Account, Generation, Location, DictionaryPrompt, Collage,
     User, UserPhotoset,
     Bike, BikeColor, BikeFile,
     Helmet, HelmetColor, HelmetFile,
-    Jacket, JacketColor, JacketFile, Collage,
+    Jacket, JacketColor, JacketFile,
+    Glove, GloveColor, GloveFile,
 )
 
 
@@ -379,6 +380,78 @@ async def clear_user_jacket_file(tg_id: int) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Glove
+# ---------------------------------------------------------------------------
+
+async def get_glove_brands() -> list[str]:
+    async with get_session() as session:
+        result = await session.execute(
+            select(Glove.brand).distinct().order_by(Glove.brand)
+        )
+        return list(result.scalars().all())
+
+
+async def get_glove_models(brand: str) -> list[Glove]:
+    async with get_session() as session:
+        result = await session.execute(
+            select(Glove).where(Glove.brand == brand).order_by(Glove.model)
+        )
+        return list(result.scalars().all())
+
+
+async def get_glove_colors(glove_id: int) -> list[GloveColor]:
+    async with get_session() as session:
+        result = await session.execute(
+            select(GloveColor)
+            .where(
+                (GloveColor.glove_id == glove_id) | (GloveColor.glove_id.is_(None))
+            )
+            .order_by(GloveColor.name)
+        )
+        return list(result.scalars().all())
+
+
+async def get_glove_file(glove_id: int, color_id: int) -> GloveFile | None:
+    async with get_session() as session:
+        result = await session.execute(
+            select(GloveFile)
+            .where(GloveFile.glove_id == glove_id, GloveFile.color_id == color_id)
+            .options(
+                selectinload(GloveFile.glove),
+                selectinload(GloveFile.color),
+            )
+        )
+        return result.scalar_one_or_none()
+
+
+async def get_glove_file_by_id(glove_file_id: int) -> GloveFile | None:
+    async with get_session() as session:
+        result = await session.execute(
+            select(GloveFile)
+            .where(GloveFile.id == glove_file_id)
+            .options(
+                selectinload(GloveFile.glove),
+                selectinload(GloveFile.color),
+            )
+        )
+        return result.scalar_one_or_none()
+
+
+async def update_user_glove_file(tg_id: int, glove_file_id: int) -> None:
+    async with get_session() as session:
+        await session.execute(
+            update(User).where(User.tg_id == tg_id).values(glove_file_id=glove_file_id)
+        )
+
+
+async def clear_user_glove_file(tg_id: int) -> None:
+    async with get_session() as session:
+        await session.execute(
+            update(User).where(User.tg_id == tg_id).values(glove_file_id=None)
+        )
+
+
+# ---------------------------------------------------------------------------
 # Account (ротация токенов Gemini)
 # ---------------------------------------------------------------------------
 
@@ -477,7 +550,7 @@ async def get_collage_state(type: str, brand: str):
     Один запрос: текущее кол-во моделей + закэшированные данные.
     Возвращает (current_count, cached_file | None, cached_count | None)
     """
-    model_map = {"helmet": Helmet, "jacket": Jacket}
+    model_map = {"helmet": Helmet, "jacket": Jacket, "glove": Glove}
     Model = model_map[type]
 
     async with get_session() as session:
@@ -494,7 +567,7 @@ async def get_collage_state(type: str, brand: str):
             )
             .group_by(Collage.file, Collage.models_count)
         )
-        return result.one()  # (current_count, file | None, models_count | None)
+        return result.one()
 
 
 async def upsert_collage(type: str, brand: str, file_path: str, count: int) -> None:
@@ -508,3 +581,22 @@ async def upsert_collage(type: str, brand: str, file_path: str, count: int) -> N
             cached.models_count = count
         else:
             session.add(Collage(type=type, brand=brand, file=file_path, models_count=count))
+
+
+async def get_items_for_collage(item_type: str, brand: str) -> list[tuple[str, str | None]]:
+    """Возвращает (model, first_file_path) для построения коллажа."""
+    model_map = {
+        "helmet": (Helmet, HelmetFile, Helmet.model),
+        "jacket": (Jacket, JacketFile, Jacket.model),
+        "glove": (Glove, GloveFile, Glove.model),
+    }
+    Model, FileModel, order_col = model_map[item_type]
+
+    async with get_session() as session:
+        result = await session.execute(
+            select(Model).where(Model.brand == brand)
+            .options(selectinload(Model.files))
+            .order_by(order_col)
+        )
+        rows = result.scalars().all()
+        return [(r.model, r.files[0].file if r.files else None) for r in rows]

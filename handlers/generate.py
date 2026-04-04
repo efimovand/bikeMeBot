@@ -25,12 +25,14 @@ async def run_generation(message_or_query, tg_id: int):
 
     user = await db.get_user_by_tg_id(tg_id)
 
-    # TODO: убрать после тестов (промпт)
     prompt = await make_final_prompt(
         bike_file_id=user.bike_file_id,
         helmet_file_id=user.helmet_file_id,
         jacket_file_id=user.jacket_file_id,
+        glove_file_id=user.glove_file_id,
     )
+
+    # TODO: убрать после тестов (промпт)
     await target.answer(f"<code>{prompt}</code>", parse_mode="HTML")
 
     # TODO: убрать после тестов (пути до файлов)
@@ -39,6 +41,9 @@ async def run_generation(message_or_query, tg_id: int):
     if user.helmet_file:
         helmet_path = TEST_MEDIA_BASE / user.helmet_file.file
         paths.append(str(helmet_path))
+    if user.jacket_file:
+        jacket_path = TEST_MEDIA_BASE / user.jacket_file.file
+        paths.append(str(jacket_path))
     paths_text = "\n".join(f"<code>{p}</code>" for p in paths)
     await target.answer(paths_text, parse_mode="HTML")
 
@@ -66,6 +71,7 @@ async def run_generation(message_or_query, tg_id: int):
     #             bike_file_path=BASE / user.bike_file.file,
     #             helmet_file_path=BASE / user.helmet_file.file if user.helmet_file else None,
     #             jacket_file_path=BASE / user.jacket_file.file if user.jacket_file else None,
+    #             glove_file_path=BASE / user.glove_file.file if user.glove_file else None,
     #             prompt=prompt,
     #         )
     #

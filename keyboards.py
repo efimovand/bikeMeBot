@@ -15,6 +15,7 @@ class MenuCallback(CallbackData, prefix="menu"):
     action: str  # bike / helmet / photos / generate
 
 
+# Bike
 class BikeBrandCallback(CallbackData, prefix="bike_brand"):
     brand: str
 
@@ -28,6 +29,7 @@ class BikeColorCallback(CallbackData, prefix="bike_color"):
     color_id: int
 
 
+# Helmet
 class HelmetBrandCallback(CallbackData, prefix="helmet_brand"):
     brand: str
 
@@ -41,6 +43,7 @@ class HelmetColorCallback(CallbackData, prefix="helmet_color"):
     color_id: int
 
 
+# Jacket
 class JacketBrandCallback(CallbackData, prefix="jacket_brand"):
     brand: str
 
@@ -51,6 +54,20 @@ class JacketModelCallback(CallbackData, prefix="jacket_model"):
 
 class JacketColorCallback(CallbackData, prefix="jacket_color"):
     jacket_id: int
+    color_id: int
+
+
+# Glove
+class GloveBrandCallback(CallbackData, prefix="glove_brand"):
+    brand: str
+
+
+class GloveModelCallback(CallbackData, prefix="glove_model"):
+    glove_id: int
+
+
+class GloveColorCallback(CallbackData, prefix="glove_color"):
+    glove_id: int
     color_id: int
 
 
@@ -75,6 +92,7 @@ def main_menu_keyboard(
     has_bike: bool,
     has_helmet: bool,
     has_jacket: bool,
+    has_glove: bool,
     has_photos: bool,
 ) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
@@ -96,6 +114,12 @@ def main_menu_keyboard(
     else:
         builder.button(text="🧥 Выбрать куртку", callback_data=MenuCallback(action="jacket"))
 
+    if has_glove:
+        builder.button(text="🧤 Изменить перчатки", callback_data=MenuCallback(action="glove"))
+        builder.button(text="❌ Убрать перчатки", callback_data=MenuCallback(action="glove_remove"))
+    else:
+        builder.button(text="🧤 Выбрать перчатки", callback_data=MenuCallback(action="glove"))
+
     builder.button(
         text="📷 Изменить фото" if has_photos else "📷 Загрузить фото",
         callback_data=MenuCallback(action="photos")
@@ -104,7 +128,7 @@ def main_menu_keyboard(
     if has_bike and has_photos:
         builder.button(text="✨ Сгенерировать", callback_data=MenuCallback(action="generate"))
 
-    builder.adjust(1, 2 if has_helmet else 1, 2 if has_jacket else 1, 1, 1)
+    builder.adjust(1, 2 if has_helmet else 1, 2 if has_jacket else 1, 2 if has_glove else 1, 1, 1)
     return builder.as_markup()
 
 
@@ -195,6 +219,25 @@ def jacket_colors_keyboard(colors: list, jacket_id: int) -> InlineKeyboardMarkup
         builder.button(
             text=color.name,
             callback_data=JacketColorCallback(jacket_id=jacket_id, color_id=color.id)
+        )
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def glove_models_keyboard(gloves: list) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for glove in gloves:
+        builder.button(text=glove.model, callback_data=GloveModelCallback(glove_id=glove.id))
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def glove_colors_keyboard(colors: list, glove_id: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for color in colors:
+        builder.button(
+            text=color.name,
+            callback_data=GloveColorCallback(glove_id=glove_id, color_id=color.id)
         )
     builder.adjust(1)
     return builder.as_markup()
