@@ -109,6 +109,7 @@ async def got_body_photo(message: Message, state: FSMContext, bot: Bot):
                 has_bike=user.bike_file_id is not None,
                 has_helmet=user.helmet_file_id is not None,
                 has_jacket=user.jacket_file_id is not None,
+                has_glove=user.glove_file_id is not None,
                 has_photos=True,
             ),
             parse_mode="HTML",

@@ -226,29 +226,3 @@ async def generate_for_user(
 
     logger.info("Generation %s saved to %s", generation_id, out_path)
     return out_path
-
-
-# ---------------------------------------------------------------------------
-# Ручной запуск для тестов
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    BASE_TEST = Path(r"C:\users\masha\Desktop\bikeMeBot\media")
-
-    from prompts import make_final_prompt
-
-    async def _test():
-        prompt = await make_final_prompt(bike_file_id=1, helmet_file_id=1)
-        path = await generate_for_user(
-            generation_id=0,
-            tg_id=0,
-            bike_file_path=BASE_TEST / "bikes/ducati/panigalev2/panigalev2_red.jpg",
-            helmet_file_path=BASE_TEST / "helmets/ls2/xforce/xforce_black.jpg",
-            glove_file_path=BASE_TEST / "gloves/alpinestars/name/name_black.jpg",
-            prompt=prompt,
-            aspect_ratio="1:1",
-            resolution="1K",
-        )
-        print(f"\nСохранено: {path.resolve()}")
-
-    asyncio.run(_test())

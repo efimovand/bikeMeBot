@@ -56,6 +56,8 @@ _USER_OPTIONS = [
     selectinload(User.helmet_file).selectinload(HelmetFile.color),
     selectinload(User.jacket_file).selectinload(JacketFile.jacket),
     selectinload(User.jacket_file).selectinload(JacketFile.color),
+    selectinload(User.glove_file).selectinload(GloveFile.glove),
+    selectinload(User.glove_file).selectinload(GloveFile.color),
     selectinload(User.photoset),
 ]
 
