@@ -8,11 +8,11 @@ from handlers.start import send_main_menu
 from kie_ai import generate_for_user, InsufficientCreditsError, ContentPolicyError
 from keyboards import MenuCallback, generate_again_keyboard
 from prompts import make_final_prompt
+from utils import _config_msg_ids
 
 
 router = Router()
 BASE = Path(settings.media_dir)
-
 TEST_MEDIA_BASE = Path("C:/Users/masha/Desktop/bikeMeBot/media/")  # TODO: убрать после тестов
 
 
@@ -21,6 +21,11 @@ async def run_generation(message_or_query, tg_id: int):
         target = message_or_query
     else:
         await message_or_query.answer()
+        try:
+            await message_or_query.message.delete()
+        except Exception:
+            pass
+        _config_msg_ids.pop(tg_id, None)
         target = message_or_query.message
 
     user = await db.get_user_by_tg_id(tg_id)
@@ -110,6 +115,9 @@ async def on_generate(query: CallbackQuery, state: FSMContext):
 @router.callback_query(MenuCallback.filter(F.action == "main_menu"))
 async def on_main_menu(query: CallbackQuery, state: FSMContext):
     await query.answer()
-    await query.message.edit_reply_markup(reply_markup=None)
+    try:
+        await query.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
     user = await db.get_user_by_tg_id(query.from_user.id)
     await send_main_menu(query.message, user, state)

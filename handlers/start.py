@@ -15,7 +15,7 @@ from keyboards import (
     policy_keyboard,
 )
 from states import BikeStates, HelmetStates, JacketStates, OnboardingStates, PhotoStates
-from utils import config_text
+from utils import config_text, _config_msg_ids
 
 
 router = Router()
@@ -32,7 +32,7 @@ ONBOARDING_TEXT = (
 
 
 async def send_main_menu(message_or_query, user, state: FSMContext):
-    """Универсальная отправка главного меню."""
+    """Универсальная отправка главного меню. Всегда в единственном экземпляре."""
     await state.clear()
 
     text = config_text(user)
@@ -44,17 +44,28 @@ async def send_main_menu(message_or_query, user, state: FSMContext):
         has_photos=db.photoset_is_complete(user.photoset),
     )
 
+    tg_id = user.tg_id
+
     if isinstance(message_or_query, Message):
-        await message_or_query.answer(text, reply_markup=keyboard, parse_mode="HTML")
+        old_msg_id = _config_msg_ids.pop(tg_id, None)
+        if old_msg_id:
+            try:
+                await message_or_query.bot.delete_message(message_or_query.chat.id, old_msg_id)
+            except Exception:
+                pass
+
+        sent = await message_or_query.answer(text, reply_markup=keyboard, parse_mode="HTML")
+        _config_msg_ids[tg_id] = sent.message_id
     else:
         await message_or_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+        _config_msg_ids[tg_id] = message_or_query.message.message_id
 
 
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
-    if message.from_user.id != 370377802:  # TODO: Дебаг
-        await message.answer('Вам недоступен функционал BikeMeBot. Обратитесь к @efimov_and')
-        return
+    # if message.from_user.id != 370377802:  # TODO: Дебаг
+    #     await message.answer('Вам недоступен функционал BikeMeBot. Обратитесь к @efimov_and')
+    #     return
 
     user, created = await db.get_or_create_user(
         tg_id=message.from_user.id,

@@ -6,6 +6,8 @@ from database import photoset_is_complete
 
 BASE_DIR = Path(settings.media_dir)
 
+_config_msg_ids: dict[int, int] = {}
+
 
 def get_media_path(relative_path: str) -> Path:
     return BASE_DIR / relative_path
