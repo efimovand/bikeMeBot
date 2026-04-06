@@ -177,7 +177,6 @@ async def get_or_build_collage(type: str, brand: str) -> Path:
         if path.exists():
             return path
 
-    # Данные достаём здесь, через уже существующий async-коннекшн
     raw_items = await db.get_items_for_collage(type, brand)
     items = [ItemView(model, photo) for model, photo in raw_items]
 

@@ -1,3 +1,4 @@
+import random
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from random import choice
@@ -593,6 +594,7 @@ async def get_items_for_collage(item_type: str, brand: str) -> list[tuple[str, s
         "glove": (Glove, GloveFile, Glove.model),
     }
     Model, FileModel, order_col = model_map[item_type]
+    random_color = item_type != "helmet"
 
     async with get_session() as session:
         result = await session.execute(
@@ -601,4 +603,10 @@ async def get_items_for_collage(item_type: str, brand: str) -> list[tuple[str, s
             .order_by(order_col)
         )
         rows = result.scalars().all()
-        return [(r.model, r.files[0].file if r.files else None) for r in rows]
+
+        def pick_file(files):
+            if not files:
+                return None
+            return random.choice(files).file if random_color else files[0].file
+
+        return [(r.model, pick_file(r.files)) for r in rows]
