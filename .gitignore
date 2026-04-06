@@ -9,6 +9,8 @@ __pycache__/
 media/users/
 media/collages/
 
+check_files.py
+
 *.db
 
 .DS_Store
