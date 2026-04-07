@@ -43,10 +43,21 @@ def _brand_dir(item_type: str, brand: str) -> Path:
 # -------------------------------------------------------------------
 
 def _load_font(path, size):
-    try:
-        return ImageFont.truetype(path, size) if path else ImageFont.load_default()
-    except OSError:
-        return ImageFont.load_default()
+    candidates = [
+        path,
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+        "C:/Windows/Fonts/arial.ttf",
+    ]
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            return ImageFont.truetype(candidate, size)
+        except OSError:
+            continue
+    return ImageFont.load_default()
 
 
 font_brand = _load_font(FONT_BOLD_PATH, 10)
