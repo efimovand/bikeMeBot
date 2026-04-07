@@ -1,19 +1,21 @@
 from pathlib import Path
-
 from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
-
+from aiogram.types import CallbackQuery, Message, FSInputFile
 import database as db
 from config import settings
 from keyboards import MenuCallback, main_menu_keyboard
 from states import PhotoStates
-from database import photoset_is_complete
 from utils import config_text
 
 
 router = Router()
+EXAMPLES_DIR = Path(settings.media_dir) / "examples" / "photoset"
 
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def user_media_dir(tg_id: int) -> Path:
     path = settings.media_dir / "users" / str(tg_id)
@@ -33,6 +35,14 @@ async def save_photo(bot: Bot, message: Message, filename: str) -> str:
     return str(Path("users") / str(tg_id) / filename)
 
 
+async def _delete_chain(bot: Bot, chat_id: int, msg_ids: list[int]) -> None:
+    for msg_id in msg_ids:
+        try:
+            await bot.delete_message(chat_id, msg_id)
+        except Exception:
+            pass
+
+
 # ---------------------------------------------------------------------------
 # Вход в загрузку фото (из главного меню)
 # ---------------------------------------------------------------------------
@@ -41,12 +51,20 @@ async def save_photo(bot: Bot, message: Message, filename: str) -> str:
 async def on_photos_menu(query: CallbackQuery, state: FSMContext):
     await query.answer()
     await state.set_state(PhotoStates.waiting_front)
-    await query.message.edit_text(
+
+    await query.message.delete()
+
+    text_msg = await query.message.answer(
         "📸 <b>Шаг 1 из 3 — Фото анфас</b>\n\n"
         "Сфотографируйся прямо, смотри в камеру, лицо и плечи должны быть хорошо видны.\n\n"
         "Отправь фото 👇",
         parse_mode="HTML",
     )
+    example_msg = await query.message.answer_photo(
+        photo=FSInputFile(EXAMPLES_DIR / "front.jpg"),
+        caption="Пример фото",
+    )
+    await state.update_data(chain_msg_ids=[text_msg.message_id, example_msg.message_id])
 
 
 # ---------------------------------------------------------------------------
@@ -56,31 +74,49 @@ async def on_photos_menu(query: CallbackQuery, state: FSMContext):
 @router.message(PhotoStates.waiting_front, F.photo)
 async def got_front_photo(message: Message, state: FSMContext, bot: Bot):
     path = await save_photo(bot, message, "front.jpg")
+    data = await state.get_data()
+    chain_ids: list[int] = data.get("chain_msg_ids", [])
+
     await state.update_data(front_photo=path)
     await state.set_state(PhotoStates.waiting_side)
 
-    await message.answer(
+    text_msg = await message.answer(
         "✅ Фото анфас сохранено!\n\n"
         "📸 <b>Шаг 2 из 3 — Фото в профиль</b>\n\n"
         "Встань боком к камере (левым или правым — неважно).\n\n"
         "Отправь фото 👇",
         parse_mode="HTML",
     )
+    example_msg = await message.answer_photo(
+        photo=FSInputFile(EXAMPLES_DIR / "side.jpg"),
+        caption="Пример фото",
+    )
+    chain_ids += [message.message_id, text_msg.message_id, example_msg.message_id]
+    await state.update_data(chain_msg_ids=chain_ids)
 
 
 @router.message(PhotoStates.waiting_side, F.photo)
 async def got_side_photo(message: Message, state: FSMContext, bot: Bot):
     path = await save_photo(bot, message, "side.jpg")
+    data = await state.get_data()
+    chain_ids: list[int] = data.get("chain_msg_ids", [])
+
     await state.update_data(side_photo=path)
     await state.set_state(PhotoStates.waiting_body)
 
-    await message.answer(
+    text_msg = await message.answer(
         "✅ Фото в профиль сохранено!\n\n"
         "📸 <b>Шаг 3 из 3 — Фото в полный рост</b>\n\n"
         "Встань прямо, в кадре должно быть видно тебя от головы до ног.\n\n"
         "Отправь фото 👇",
         parse_mode="HTML",
     )
+    example_msg = await message.answer_photo(
+        photo=FSInputFile(EXAMPLES_DIR / "body.jpg"),
+        caption="Пример фото",
+    )
+    chain_ids += [message.message_id, text_msg.message_id, example_msg.message_id]
+    await state.update_data(chain_msg_ids=chain_ids)
 
 
 @router.message(PhotoStates.waiting_body, F.photo)
@@ -88,6 +124,8 @@ async def got_body_photo(message: Message, state: FSMContext, bot: Bot):
     path = await save_photo(bot, message, "body.jpg")
     data = await state.get_data()
     onboarding = data.get("onboarding", False)
+    chain_ids: list[int] = data.get("chain_msg_ids", [])
+    chain_ids.append(message.message_id)
 
     user = await db.get_user_by_tg_id(message.from_user.id)
     await db.upsert_user_photoset(
@@ -97,6 +135,8 @@ async def got_body_photo(message: Message, state: FSMContext, bot: Bot):
         body_photo=path,
     )
     await state.clear()
+
+    await _delete_chain(bot, message.chat.id, chain_ids)
 
     if onboarding:
         from handlers.generate import run_generation
@@ -117,7 +157,7 @@ async def got_body_photo(message: Message, state: FSMContext, bot: Bot):
 
 
 # ---------------------------------------------------------------------------
-# Если прислали не фото во время ожидания
+# Если прислали не фото
 # ---------------------------------------------------------------------------
 
 @router.message(PhotoStates.waiting_front)
