@@ -1,3 +1,5 @@
+# handlers/generate.py
+import asyncio
 from pathlib import Path
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
@@ -14,6 +16,40 @@ from utils import _config_msg_ids
 router = Router()
 BASE = Path(settings.media_dir)
 TEST_MEDIA_BASE = Path("C:/Users/masha/Desktop/bikeMeBot/media/")  # TODO: убрать после тестов
+
+ESTIMATED_SECONDS = 120
+LOADER_INTERVAL = 6
+BAR_LENGTH = 10
+
+
+async def _run_loader(message, stop_event: asyncio.Event):
+    start = asyncio.get_event_loop().time()
+    stages = [
+        "Загружаем фото...",
+        "Анализирем образ...",
+        "Подбираем ракурс...",
+        "Рисуем детали...",
+        "Финальные штрихи...",
+    ]
+    while not stop_event.is_set():
+        await asyncio.sleep(LOADER_INTERVAL)
+        if stop_event.is_set():
+            break
+        elapsed = asyncio.get_event_loop().time() - start
+        progress = min(elapsed / ESTIMATED_SECONDS, 0.95)
+        filled = round(progress * BAR_LENGTH)
+        bar = "█" * filled + "░" * (BAR_LENGTH - filled)
+        percent = int(progress * 100)
+        stage = stages[min(int(progress * len(stages)), len(stages) - 1)]
+        try:
+            await message.edit_text(
+                f"⏳ <b>Генерация началась!</b>\n\n"
+                f"[{bar}] {percent}%\n"
+                f"<i>{stage}</i>",
+                parse_mode="HTML",
+            )
+        except Exception:
+            break
 
 
 async def run_generation(message_or_query, tg_id: int):
@@ -53,13 +89,23 @@ async def run_generation(message_or_query, tg_id: int):
     #     glove_path = TEST_MEDIA_BASE / user.glove_file.file
     #     paths.append(str(glove_path))
     # paths_text = "\n".join(f"<code>{p}</code>" for p in paths)
-    # await target.answer(paths_text, parse_mode="HTML")
+    # await target.answer(paths_text, parse_mode="HTML", reply_markup=generate_again_keyboard())
 
-    waiting_msg = await target.answer("⏳ Генерация началась, подожди немного...", parse_mode="HTML")
+    waiting_msg = await target.answer(
+        "⏳ <b>Генерация началась!</b>\n\n"
+        f"[{'░' * BAR_LENGTH}] 0%\n\n"
+        "<i>Загружаю фото...</i>",
+        parse_mode="HTML",
+    )
+
+    stop_event = asyncio.Event()
+    loader_task = asyncio.create_task(_run_loader(waiting_msg, stop_event))
 
     while True:
         account = await db.get_active_account()
         if account is None:
+            stop_event.set()
+            loader_task.cancel()
             await waiting_msg.edit_text("❌ Нет доступных аккаунтов для генерации.")
             return
 
@@ -83,6 +129,8 @@ async def run_generation(message_or_query, tg_id: int):
                 prompt=prompt,
             )
 
+            stop_event.set()
+            loader_task.cancel()
             await db.update_generation_status(generation.id, "success")
             await db.increment_spent_stars(tg_id)
 
@@ -99,9 +147,15 @@ async def run_generation(message_or_query, tg_id: int):
             await db.deactivate_account(account.id)
 
         except ContentPolicyError:
+            stop_event.set()
+            loader_task.cancel()
             await db.update_generation_status(generation.id, "failed")
+            await waiting_msg.edit_text("❌ Изображение не прошло проверку контента.")
+            return
 
         except Exception as e:
+            stop_event.set()
+            loader_task.cancel()
             await db.update_generation_status(generation.id, "failed")
             await waiting_msg.edit_text(f"❌ Ошибка генерации: {e}")
             raise
