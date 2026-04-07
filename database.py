@@ -272,7 +272,7 @@ async def get_helmet_colors(helmet_id: int) -> list[HelmetColor]:
             .where(
                 (HelmetColor.helmet_id == helmet_id) | (HelmetColor.helmet_id.is_(None))
             )
-            .order_by(HelmetColor.name)
+            .order_by(HelmetColor.id)
         )
         return list(result.scalars().all())
 
@@ -337,7 +337,7 @@ async def get_jacket_colors(jacket_id: int) -> list[JacketColor]:
             .where(
                 (JacketColor.jacket_id == jacket_id) | (JacketColor.jacket_id.is_(None))
             )
-            .order_by(JacketColor.name)
+            .order_by(JacketColor.id)
         )
         return list(result.scalars().all())
 
@@ -409,7 +409,7 @@ async def get_glove_colors(glove_id: int) -> list[GloveColor]:
             .where(
                 (GloveColor.glove_id == glove_id) | (GloveColor.glove_id.is_(None))
             )
-            .order_by(GloveColor.name)
+            .order_by(GloveColor.id)
         )
         return list(result.scalars().all())
 
@@ -548,11 +548,7 @@ async def get_default_prompt() -> DictionaryPrompt | None:
 # Collage
 # ---------------------------------------------------------------------------
 
-async def get_collage_state(type: str, brand: str):
-    """
-    Один запрос: текущее кол-во моделей + закэшированные данные.
-    Возвращает (current_count, cached_file | None, cached_count | None)
-    """
+async def get_brand_collage_state(type: str, brand: str):
     model_map = {"helmet": Helmet, "jacket": Jacket, "glove": Glove}
     Model = model_map[type]
 
@@ -566,32 +562,73 @@ async def get_collage_state(type: str, brand: str):
             .where(Model.brand == brand)
             .outerjoin(
                 Collage,
-                (Collage.type == type) & (Collage.brand == brand)
+                (Collage.type == type) & (Collage.brand == brand) & (Collage.model_id == 0)
             )
             .group_by(Collage.file, Collage.models_count)
         )
         return result.one()
 
 
-async def upsert_collage(type: str, brand: str, file_path: str, count: int) -> None:
+async def get_color_collage_state(type: str, brand: str, model_id: int):
+    file_map = {
+        "helmet": (HelmetFile, HelmetFile.helmet_id),
+        "jacket": (JacketFile, JacketFile.jacket_id),
+        "glove":  (GloveFile,  GloveFile.glove_id),
+    }
+    FileModel, fk_col = file_map[type]
+
     async with get_session() as session:
         result = await session.execute(
-            select(Collage).where(Collage.type == type, Collage.brand == brand)
+            select(
+                func.count(FileModel.id).label("current_count"),
+                Collage.file,
+                Collage.models_count,
+            )
+            .where(fk_col == model_id)
+            .outerjoin(
+                Collage,
+                (Collage.type == type) & (Collage.brand == brand) & (Collage.model_id == model_id)
+            )
+            .group_by(Collage.file, Collage.models_count)
+        )
+        return result.one()
+
+
+async def upsert_brand_collage(type: str, brand: str, file_path: str, count: int) -> None:
+    async with get_session() as session:
+        result = await session.execute(
+            select(Collage).where(Collage.type == type, Collage.brand == brand, Collage.model_id == 0)
         )
         cached = result.scalar_one_or_none()
         if cached:
             cached.file = file_path
             cached.models_count = count
         else:
-            session.add(Collage(type=type, brand=brand, file=file_path, models_count=count))
+            session.add(Collage(type=type, brand=brand, model_id=0, file=file_path, models_count=count))
+
+
+async def upsert_color_collage(type: str, brand: str, model_id: int, file_path: str, count: int) -> None:
+    async with get_session() as session:
+        result = await session.execute(
+            select(Collage).where(
+                Collage.type == type, Collage.brand == brand, Collage.model_id == model_id
+            )
+        )
+        cached = result.scalar_one_or_none()
+        if cached:
+            cached.file = file_path
+            cached.models_count = count
+        else:
+            session.add(Collage(
+                type=type, brand=brand, model_id=model_id, file=file_path, models_count=count
+            ))
 
 
 async def get_items_for_collage(item_type: str, brand: str) -> list[tuple[str, str | None]]:
-    """Возвращает (model, first_file_path) для построения коллажа."""
     model_map = {
         "helmet": (Helmet, HelmetFile, Helmet.model),
         "jacket": (Jacket, JacketFile, Jacket.model),
-        "glove": (Glove, GloveFile, Glove.model),
+        "glove":  (Glove,  GloveFile,  Glove.model),
     }
     Model, FileModel, order_col = model_map[item_type]
     random_color = item_type != "helmet"
@@ -610,3 +647,22 @@ async def get_items_for_collage(item_type: str, brand: str) -> list[tuple[str, s
             return random.choice(files).file if random_color else files[0].file
 
         return [(r.model, pick_file(r.files)) for r in rows]
+
+
+async def get_colors_for_collage(item_type: str, model_id: int) -> list[tuple[str, str | None]]:
+    file_map = {
+        "helmet": (HelmetFile, HelmetFile.helmet_id),
+        "jacket": (JacketFile, JacketFile.jacket_id),
+        "glove":  (GloveFile,  GloveFile.glove_id),
+    }
+    FileModel, fk_col = file_map[item_type]
+
+    async with get_session() as session:
+        result = await session.execute(
+            select(FileModel)
+            .where(fk_col == model_id)
+            .options(selectinload(FileModel.color))
+            .order_by(FileModel.id)
+        )
+        files = result.scalars().all()
+        return [(f.color.name, f.file) for f in files]

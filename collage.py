@@ -2,16 +2,10 @@ import asyncio
 from pathlib import Path
 from io import BytesIO
 from typing import NamedTuple
-
 import requests
 from PIL import Image, ImageDraw, ImageFont
-
 import database as db
 
-
-# -------------------------------------------------------------------
-# CONFIG
-# -------------------------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parent / "media"
 
@@ -30,13 +24,18 @@ PLATE_H = 46
 FONT_BOLD_PATH = None
 FONT_REGULAR_PATH = None
 
-# Настройки для каждого типа: директория сохранения + иконка (на будущее)
-TYPE_CONFIG = {
-    "helmet": {"dir": BASE_DIR / "collages/helmets", "prefix": "helmets"},
-    "jacket": {"dir": BASE_DIR / "collages/jackets", "prefix": "jackets"},
-    "glove":  {"dir": BASE_DIR / "collages/gloves",  "prefix": "gloves"},
-    # "boot":   {"dir": BASE_DIR / "collages/boots",   "prefix": "boots"},
+TYPE_SUBDIR = {
+    "helmet": "helmets",
+    "jacket": "jackets",
+    "glove":  "gloves",
 }
+
+
+def _brand_dir(item_type: str, brand: str) -> Path:
+    slug = brand.lower().replace(" ", "_")
+    path = BASE_DIR / "collages" / TYPE_SUBDIR[item_type] / slug
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 # -------------------------------------------------------------------
@@ -71,7 +70,7 @@ def load_image(path: str) -> Image.Image:
 
 
 # -------------------------------------------------------------------
-# RENDER
+# RENDER HELPERS
 # -------------------------------------------------------------------
 
 def _fit_on_white(img: Image.Image, w: int, h: int) -> Image.Image:
@@ -94,7 +93,7 @@ def _truncate(draw, text, font, max_w):
     return text.rstrip()
 
 
-def _draw_card(model_name: str, brand_name: str, photo_path: str | None) -> Image.Image:
+def _draw_card(label_top: str, label_bottom: str, photo_path: str | None) -> Image.Image:
     card = Image.new("RGB", (CARD_SIZE, CARD_SIZE), (255, 255, 255))
     photo_h = CARD_SIZE - PLATE_H
 
@@ -122,30 +121,25 @@ def _draw_card(model_name: str, brand_name: str, photo_path: str | None) -> Imag
     draw = ImageDraw.Draw(card)
     draw.line([(0, photo_h), (CARD_SIZE, photo_h)], fill=ACCENT, width=2)
     _draw_triangle(draw, 10, photo_h + 7, 6, ACCENT)
-    draw.text((20, photo_h + 6), brand_name.upper(), font=font_brand, fill=TEXT_ACCENT)
-    name = _truncate(draw, model_name, font_model, CARD_SIZE - 18)
+    draw.text((20, photo_h + 6), label_top.upper(), font=font_brand, fill=TEXT_ACCENT)
+    name = _truncate(draw, label_bottom, font_model, CARD_SIZE - 18)
     draw.text((10, photo_h + 21), name, font=font_model, fill=TEXT_PRIMARY)
 
     return card
 
 
 # -------------------------------------------------------------------
-# DTO
-# -------------------------------------------------------------------
-
-class ItemView(NamedTuple):
-    model: str
-    photo_path: str | None
-
-
-# -------------------------------------------------------------------
 # BUILD
 # -------------------------------------------------------------------
 
-def _build_collage(items: list[ItemView], brand_name: str, type: str) -> Path:
-    cfg = TYPE_CONFIG[type]
-    collage_dir: Path = cfg["dir"]
-    collage_dir.mkdir(parents=True, exist_ok=True)
+class ItemView(NamedTuple):
+    label_top: str
+    label_bottom: str
+    photo_path: str | None
+
+
+def _build_collage(items: list[ItemView], out_path: Path) -> Path:
+    out_path.parent.mkdir(parents=True, exist_ok=True)
 
     rows = -(-len(items) // COLS)
     w = COLS * CARD_SIZE + (COLS - 1) * GAP + PADDING * 2
@@ -157,32 +151,54 @@ def _build_collage(items: list[ItemView], brand_name: str, type: str) -> Path:
         col, row = idx % COLS, idx // COLS
         x = PADDING + col * (CARD_SIZE + GAP)
         y = PADDING + row * (CARD_SIZE + GAP)
-        canvas.paste(_draw_card(item.model, brand_name, item.photo_path), (x, y))
+        canvas.paste(_draw_card(item.label_top, item.label_bottom, item.photo_path), (x, y))
 
-    slug = brand_name.lower().replace(" ", "_")
-    filepath = collage_dir / f"{cfg['prefix']}_{slug}.jpg"
-    canvas.save(filepath, "JPEG", quality=100, optimize=True)
-    return filepath
+    canvas.save(out_path, "JPEG", quality=100, optimize=True)
+    return out_path
 
 
 # -------------------------------------------------------------------
 # PUBLIC API
 # -------------------------------------------------------------------
 
-async def get_or_build_collage(type: str, brand: str) -> Path:
-    current_count, cached_file, cached_count = await db.get_collage_state(type, brand)
+async def get_or_build_brand_collage(item_type: str, brand: str) -> Path:
+    current_count, cached_file, cached_count = await db.get_brand_collage_state(item_type, brand)
 
     if cached_file and cached_count == current_count:
         path = Path(cached_file)
         if path.exists():
             return path
 
-    raw_items = await db.get_items_for_collage(type, brand)
-    items = [ItemView(model, photo) for model, photo in raw_items]
+    raw_items = await db.get_items_for_collage(item_type, brand)
+    items = [ItemView(brand, model, photo) for model, photo in raw_items]
+
+    out_path = _brand_dir(item_type, brand) / "models.jpg"
 
     def _generate():
-        return _build_collage(items, brand, type)
+        return _build_collage(items, out_path)
 
     path = await asyncio.get_running_loop().run_in_executor(None, _generate)
-    await db.upsert_collage(type, brand, str(path), current_count)
+    await db.upsert_brand_collage(item_type, brand, str(path), current_count)
+    return path
+
+
+async def get_or_build_color_collage(item_type: str, brand: str, model_id: int, model_name: str) -> Path:
+    current_count, cached_file, cached_count = await db.get_color_collage_state(item_type, brand, model_id)
+
+    if cached_file and cached_count == current_count:
+        path = Path(cached_file)
+        if path.exists():
+            return path
+
+    raw_items = await db.get_colors_for_collage(item_type, model_id)
+    items = [ItemView(model_name, color_name, photo) for color_name, photo in raw_items]
+
+    slug = model_name.lower().replace(" ", "_")
+    out_path = _brand_dir(item_type, brand) / f"colors_{slug}.jpg"
+
+    def _generate():
+        return _build_collage(items, out_path)
+
+    path = await asyncio.get_running_loop().run_in_executor(None, _generate)
+    await db.upsert_color_collage(item_type, brand, model_id, str(path), current_count)
     return path

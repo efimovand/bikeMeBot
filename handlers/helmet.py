@@ -3,7 +3,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, FSInputFile
 
 import database as db
-from collage import get_or_build_collage
+from collage import get_or_build_brand_collage, get_or_build_color_collage
 from keyboards import (
     HelmetBrandCallback, HelmetColorCallback, HelmetModelCallback,
     MenuCallback, brands_keyboard, helmet_colors_keyboard,
@@ -35,12 +35,11 @@ async def on_helmet_brand(query: CallbackQuery, callback_data: HelmetBrandCallba
     await query.answer()
     brand = callback_data.brand
 
-    collage_path = await get_or_build_collage("helmet", brand)
+    collage_path = await get_or_build_brand_collage("helmet", brand)
     helmets = await db.get_helmet_models(brand)
 
     await state.update_data(brand=brand)
     await state.set_state(HelmetStates.choosing_model)
-
     await query.message.delete()
 
     photo_msg = await query.message.answer_photo(photo=FSInputFile(collage_path))
@@ -49,28 +48,41 @@ async def on_helmet_brand(query: CallbackQuery, callback_data: HelmetBrandCallba
         reply_markup=helmet_models_keyboard(helmets),
         parse_mode="HTML",
     )
-
     await state.update_data(collage_msg_id=photo_msg.message_id, menu_msg_id=text_msg.message_id)
 
 
 @router.callback_query(HelmetModelCallback.filter(), HelmetStates.choosing_model)
 async def on_helmet_model(query: CallbackQuery, callback_data: HelmetModelCallback, state: FSMContext):
     await query.answer()
+
+    data = await state.get_data()
+    brand = data.get("brand", "")
+
+    helmets = await db.get_helmet_models(brand)
+    helmet = next((h for h in helmets if h.id == callback_data.helmet_id), None)
+    model_name = helmet.model if helmet else ""
+
     colors = await db.get_helmet_colors(callback_data.helmet_id)
 
     await state.update_data(helmet_id=callback_data.helmet_id)
     await state.set_state(HelmetStates.choosing_color)
 
-    data = await state.get_data()
     collage_msg_id = data.get("collage_msg_id")
     if collage_msg_id:
         await query.bot.delete_message(query.message.chat.id, collage_msg_id)
 
-    await query.message.edit_text(
+    color_collage_path = await get_or_build_color_collage(
+        "helmet", brand, callback_data.helmet_id, model_name
+    )
+    await query.message.delete()
+
+    photo_msg = await query.message.answer_photo(photo=FSInputFile(color_collage_path))
+    text_msg = await query.message.answer(
         "🎨 Выберите расцветку:",
         reply_markup=helmet_colors_keyboard(colors, callback_data.helmet_id),
         parse_mode="HTML",
     )
+    await state.update_data(collage_msg_id=photo_msg.message_id, menu_msg_id=text_msg.message_id)
 
 
 @router.callback_query(HelmetColorCallback.filter(), HelmetStates.choosing_color)
@@ -83,8 +95,12 @@ async def on_helmet_color(query: CallbackQuery, callback_data: HelmetColorCallba
     await query.answer()
     await db.update_user_helmet_file(query.from_user.id, helmet_file.id)
 
-    user = await db.get_user_by_tg_id(query.from_user.id)
     data = await state.get_data()
+    collage_msg_id = data.get("collage_msg_id")
+    if collage_msg_id:
+        await query.bot.delete_message(query.message.chat.id, collage_msg_id)
+
+    user = await db.get_user_by_tg_id(query.from_user.id)
     onboarding = data.get("onboarding", False)
 
     if onboarding:
