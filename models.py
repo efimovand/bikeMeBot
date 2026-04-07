@@ -294,11 +294,12 @@ class DictionaryPrompt(Base):
 class Collage(Base):
     __tablename__ = "collage"
     __table_args__ = (
-        UniqueConstraint("type", "brand", name="uq_collage_type_brand"),
+        UniqueConstraint("type", "brand", "model_id", name="uq_collage_type_brand_model"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    type: Mapped[str] = mapped_column(String(20))   # helmet / jacket / boots
+    type: Mapped[str] = mapped_column(String(20))
     brand: Mapped[str] = mapped_column(String(50))
+    model_id: Mapped[int] = mapped_column(Integer, default=0)
     models_count: Mapped[int] = mapped_column(Integer)
     file: Mapped[str] = mapped_column(Text)
