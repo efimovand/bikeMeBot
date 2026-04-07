@@ -136,10 +136,10 @@ def main_menu_keyboard(
         builder.button(text="🧤 Выбрать перчатки", callback_data=MenuCallback(action="glove"))
 
     if has_boot:
-        builder.button(text="👢 Изменить ботинки", callback_data=MenuCallback(action="boot"))
+        builder.button(text="🥾 Изменить ботинки", callback_data=MenuCallback(action="boot"))
         builder.button(text="❌ Убрать ботинки", callback_data=MenuCallback(action="boot_remove"))
     else:
-        builder.button(text="👢 Выбрать ботинки", callback_data=MenuCallback(action="boot"))
+        builder.button(text="🥾 Выбрать ботинки", callback_data=MenuCallback(action="boot"))
 
     builder.button(
         text="📷 Изменить фото" if has_photos else "📷 Загрузить фото",
