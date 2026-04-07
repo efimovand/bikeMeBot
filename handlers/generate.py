@@ -71,6 +71,7 @@ async def run_generation(message_or_query, tg_id: int):
         helmet_file_id=user.helmet_file_id,
         jacket_file_id=user.jacket_file_id,
         glove_file_id=user.glove_file_id,
+        boot_file_id=user.boot_file_id,
     )
 
     # # TODO: убрать после тестов (промпт)
@@ -88,7 +89,11 @@ async def run_generation(message_or_query, tg_id: int):
     # if user.glove_file:
     #     glove_path = TEST_MEDIA_BASE / user.glove_file.file
     #     paths.append(str(glove_path))
-    # paths_text = "\n".join(f"<code>{p}</code>" for p in paths)
+    # joined_paths = " ".join(f'"{p}"' for p in paths)
+    # if len(joined_paths) <= 259:
+    #     paths_text = f"<code>{joined_paths}</code>"
+    # else:
+    #     paths_text = "\n".join(f"<code>{p}</code>" for p in paths)
     # await target.answer(paths_text, parse_mode="HTML", reply_markup=generate_again_keyboard())
 
     waiting_msg = await target.answer(
@@ -115,6 +120,8 @@ async def run_generation(message_or_query, tg_id: int):
             bike_file=user.bike_file,
             helmet_file_id=user.helmet_file_id,
             jacket_file_id=user.jacket_file_id,
+            glove_file_id=user.glove_file_id,
+            boot_file_id=user.boot_file_id,
         )
 
         try:
@@ -126,6 +133,7 @@ async def run_generation(message_or_query, tg_id: int):
                 helmet_file_path=BASE / user.helmet_file.file if user.helmet_file else None,
                 jacket_file_path=BASE / user.jacket_file.file if user.jacket_file else None,
                 glove_file_path=BASE / user.glove_file.file if user.glove_file else None,
+                boot_file_path=BASE / user.boot_file.file if user.boot_file else None,
                 prompt=prompt,
             )
 

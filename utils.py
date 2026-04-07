@@ -38,6 +38,11 @@ def config_text(user: User) -> str:
     else:
         glove_line = "🧤 Перчатки: <b>не выбраны</b>"
 
+    if user.boot_file:
+        boot_line = f"👢 Ботинки: <b>{user.boot_file.boot.brand} {user.boot_file.boot.model} / {user.boot_file.color.name}</b>"
+    else:
+        boot_line = "👢 Ботинки: <b>не выбраны</b>"
+
     photos_line = (
         "📷 Ваши фото: ✅"
         if photoset_is_complete(user.photoset)
@@ -50,5 +55,6 @@ def config_text(user: User) -> str:
         f"{helmet_line}\n"
         f"{jacket_line}\n"
         f"{glove_line}\n"
+        f"{boot_line}\n"
         f"{photos_line}"
     )

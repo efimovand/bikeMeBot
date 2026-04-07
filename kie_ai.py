@@ -182,6 +182,7 @@ async def generate_for_user(
     helmet_file_path: Optional[str | Path] = None,
     jacket_file_path: Optional[str | Path] = None,
     glove_file_path: Optional[str | Path] = None,
+    boot_file_path: Optional[str | Path] = None,
     prompt: str = "",
     aspect_ratio: str = "1:1",
     resolution: str = "1K",
@@ -208,8 +209,13 @@ async def generate_for_user(
         items.append((jacket_file_path, None))
     if glove_file_path:
         items.append((glove_file_path, None))
+    if boot_file_path:
+        items.append((boot_file_path, None))
 
-    logger.info("generate_for_user generation_id=%s tg_id=%s: uploading %d files...", generation_id, tg_id, len(items))
+    logger.info(
+        "generate_for_user generation_id=%s tg_id=%s: uploading %d files...",
+        generation_id, tg_id, len(items),
+    )
 
     image_urls = await upload_files(items, api_key=api_key)
     task_id = await create_task(image_urls, prompt, api_key, aspect_ratio, resolution, output_format)

@@ -14,6 +14,7 @@ from models import (
     Helmet, HelmetColor, HelmetFile,
     Jacket, JacketColor, JacketFile,
     Glove, GloveColor, GloveFile,
+    Boot, BootColor, BootFile,
 )
 
 
@@ -59,6 +60,8 @@ _USER_OPTIONS = [
     selectinload(User.jacket_file).selectinload(JacketFile.color),
     selectinload(User.glove_file).selectinload(GloveFile.glove),
     selectinload(User.glove_file).selectinload(GloveFile.color),
+    selectinload(User.boot_file).selectinload(BootFile.boot),
+    selectinload(User.boot_file).selectinload(BootFile.color),
     selectinload(User.photoset),
 ]
 
@@ -72,7 +75,6 @@ async def get_user_by_tg_id(tg_id: int) -> User | None:
 
 
 async def get_or_create_user(tg_id: int, name: str | None = None) -> tuple[User, bool]:
-    """Возвращает (user, created). Если юзер уже есть — просто отдаёт его."""
     async with get_session() as session:
         result = await session.execute(
             select(User).where(User.tg_id == tg_id).options(*_USER_OPTIONS)
@@ -141,7 +143,6 @@ async def upsert_user_photoset(
     side_photo: str | None = None,
     body_photo: str | None = None,
 ) -> UserPhotoset:
-    """Создаёт фотосет если нет, или обновляет только переданные поля."""
     async with get_session() as session:
         result = await session.execute(
             select(UserPhotoset).where(UserPhotoset.user_id == user_id)
@@ -169,7 +170,6 @@ async def upsert_user_photoset(
 
 
 def photoset_is_complete(photoset: UserPhotoset | None) -> bool:
-    """Все три фото загружены."""
     return (
         photoset is not None
         and photoset.front_photo is not None
@@ -209,7 +209,6 @@ async def get_bike_models(brand: str) -> list[Bike]:
 
 
 async def get_bike_colors(bike_id: int) -> list[BikeColor]:
-    """Универсальные цвета (bike_id IS NULL) + специфичные для конкретного байка."""
     async with get_session() as session:
         result = await session.execute(
             select(BikeColor)
@@ -455,11 +454,82 @@ async def clear_user_glove_file(tg_id: int) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Account (ротация токенов Gemini)
+# Boot
+# ---------------------------------------------------------------------------
+
+async def get_boot_brands() -> list[str]:
+    async with get_session() as session:
+        result = await session.execute(
+            select(Boot.brand).distinct().order_by(Boot.brand)
+        )
+        return list(result.scalars().all())
+
+
+async def get_boot_models(brand: str) -> list[Boot]:
+    async with get_session() as session:
+        result = await session.execute(
+            select(Boot).where(Boot.brand == brand).order_by(Boot.model)
+        )
+        return list(result.scalars().all())
+
+
+async def get_boot_colors(boot_id: int) -> list[BootColor]:
+    async with get_session() as session:
+        result = await session.execute(
+            select(BootColor)
+            .where(
+                (BootColor.boot_id == boot_id) | (BootColor.boot_id.is_(None))
+            )
+            .order_by(BootColor.id)
+        )
+        return list(result.scalars().all())
+
+
+async def get_boot_file(boot_id: int, color_id: int) -> BootFile | None:
+    async with get_session() as session:
+        result = await session.execute(
+            select(BootFile)
+            .where(BootFile.boot_id == boot_id, BootFile.color_id == color_id)
+            .options(
+                selectinload(BootFile.boot),
+                selectinload(BootFile.color),
+            )
+        )
+        return result.scalar_one_or_none()
+
+
+async def get_boot_file_by_id(boot_file_id: int) -> BootFile | None:
+    async with get_session() as session:
+        result = await session.execute(
+            select(BootFile)
+            .where(BootFile.id == boot_file_id)
+            .options(
+                selectinload(BootFile.boot),
+                selectinload(BootFile.color),
+            )
+        )
+        return result.scalar_one_or_none()
+
+
+async def update_user_boot_file(tg_id: int, boot_file_id: int) -> None:
+    async with get_session() as session:
+        await session.execute(
+            update(User).where(User.tg_id == tg_id).values(boot_file_id=boot_file_id)
+        )
+
+
+async def clear_user_boot_file(tg_id: int) -> None:
+    async with get_session() as session:
+        await session.execute(
+            update(User).where(User.tg_id == tg_id).values(boot_file_id=None)
+        )
+
+
+# ---------------------------------------------------------------------------
+# Account (ротация токенов)
 # ---------------------------------------------------------------------------
 
 async def get_active_account() -> Account | None:
-    """Случайный активный аккаунт — равномерная нагрузка на токены."""
     async with get_session() as session:
         result = await session.execute(
             select(Account).where(Account.is_active == True)  # noqa: E712
@@ -486,6 +556,8 @@ async def create_generation(
     bike_file: BikeFile,
     helmet_file_id: int | None = None,
     jacket_file_id: int | None = None,
+    glove_file_id: int | None = None,
+    boot_file_id: int | None = None,
 ) -> Generation:
     async with get_session() as session:
         generation = Generation(
@@ -494,14 +566,16 @@ async def create_generation(
             bike_file_id=bike_file.id,
             helmet_file_id=helmet_file_id,
             jacket_file_id=jacket_file_id,
+            glove_file_id=glove_file_id,
+            boot_file_id=boot_file_id,
             status="pending",
         )
         session.add(generation)
         await session.flush()
         return generation
 
+
 async def update_generation_status(generation_id: int, status: str) -> None:
-    """status: 'success' | 'failed'"""
     async with get_session() as session:
         await session.execute(
             update(Generation)
@@ -534,7 +608,6 @@ async def get_prompts_by_type(type: str) -> list[DictionaryPrompt]:
 
 
 async def get_default_prompt() -> DictionaryPrompt | None:
-    """Главный промпт с {helmet}, {location}, {jacket}."""
     async with get_session() as session:
         result = await session.execute(
             select(DictionaryPrompt)
@@ -549,7 +622,7 @@ async def get_default_prompt() -> DictionaryPrompt | None:
 # ---------------------------------------------------------------------------
 
 async def get_brand_collage_state(type: str, brand: str):
-    model_map = {"helmet": Helmet, "jacket": Jacket, "glove": Glove}
+    model_map = {"helmet": Helmet, "jacket": Jacket, "glove": Glove, "boot": Boot}
     Model = model_map[type]
 
     async with get_session() as session:
@@ -574,6 +647,7 @@ async def get_color_collage_state(type: str, brand: str, model_id: int):
         "helmet": (HelmetFile, HelmetFile.helmet_id),
         "jacket": (JacketFile, JacketFile.jacket_id),
         "glove":  (GloveFile,  GloveFile.glove_id),
+        "boot":   (BootFile,   BootFile.boot_id),
     }
     FileModel, fk_col = file_map[type]
 
@@ -629,6 +703,7 @@ async def get_items_for_collage(item_type: str, brand: str) -> list[tuple[str, s
         "helmet": (Helmet, HelmetFile, Helmet.model),
         "jacket": (Jacket, JacketFile, Jacket.model),
         "glove":  (Glove,  GloveFile,  Glove.model),
+        "boot":   (Boot,   BootFile,   Boot.model),
     }
     Model, FileModel, order_col = model_map[item_type]
     random_color = item_type != "helmet"
@@ -654,6 +729,7 @@ async def get_colors_for_collage(item_type: str, model_id: int) -> list[tuple[st
         "helmet": (HelmetFile, HelmetFile.helmet_id),
         "jacket": (JacketFile, JacketFile.jacket_id),
         "glove":  (GloveFile,  GloveFile.glove_id),
+        "boot":   (BootFile,   BootFile.boot_id),
     }
     FileModel, fk_col = file_map[item_type]
 

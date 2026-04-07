@@ -28,6 +28,7 @@ TYPE_SUBDIR = {
     "helmet": "helmets",
     "jacket": "jackets",
     "glove":  "gloves",
+    "boot":   "boots",
 }
 
 

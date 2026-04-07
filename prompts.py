@@ -6,6 +6,7 @@ async def make_final_prompt(
     helmet_file_id: int | None = None,
     jacket_file_id: int | None = None,
     glove_file_id: int | None = None,
+    boot_file_id: int | None = None,
 ) -> str:
     # --- Байк + локация ---
     bike_file = await db.get_bike_file_by_id(bike_file_id)
@@ -44,21 +45,34 @@ async def make_final_prompt(
         glove_dict_text = glove_dict_prompts[0].text
         glove_prompt = glove_dict_text.format(glove_prompt=raw_glove_prompt) if raw_glove_prompt else glove_dict_text.format(glove_prompt="")
 
+    # --- Ботинки (опционально) ---
+    has_boot = boot_file_id is not None
+    boot_prompt = "IMPORTANT: The person must be shown without motorcycle boots, in their own footwear." if not has_boot else ""
+    if has_boot:
+        boot_file = await db.get_boot_file_by_id(boot_file_id)
+        raw_boot_prompt = boot_file.boot.prompt
+        boot_dict_prompts = await db.get_prompts_by_type("boot")
+        boot_dict_text = boot_dict_prompts[0].text
+        boot_prompt = boot_dict_text.format(boot_prompt=raw_boot_prompt) if raw_boot_prompt else boot_dict_text.format(boot_prompt="")
+
     # --- Финальный промпт ---
     helmet_photo_mention = ", a photo of a motorcycle helmet" if has_helmet else ""
     jacket_photo_mention = ", a photo of a motorcycle jacket" if has_jacket else ""
     glove_photo_mention = ", a photo of motorcycle gloves" if has_glove else ""
+    boot_photo_mention = ", a photo of motorcycle boots" if has_boot else ""
 
     default = await db.get_default_prompt()
     final_prompt = default.text.format(
         helmet_photo_mention=helmet_photo_mention,
         jacket_photo_mention=jacket_photo_mention,
         glove_photo_mention=glove_photo_mention,
+        boot_photo_mention=boot_photo_mention,
         bike_prompt=bike_prompt,
         location_prompt=location_prompt,
         helmet_prompt=helmet_prompt,
         jacket_prompt=jacket_prompt,
         glove_prompt=glove_prompt,
+        boot_prompt=boot_prompt,
     )
 
     return final_prompt

@@ -80,7 +80,6 @@ async def on_bike_color(query: CallbackQuery, callback_data: BikeColorCallback, 
             parse_mode="HTML",
         )
     else:
-        # Обычный режим (редактирование): возвращаем в главное меню
         user = await db.get_user_by_tg_id(query.from_user.id)
         await state.clear()
         await query.message.edit_text(
@@ -90,6 +89,7 @@ async def on_bike_color(query: CallbackQuery, callback_data: BikeColorCallback, 
                 has_helmet=user.helmet_file_id is not None,
                 has_jacket=user.jacket_file_id is not None,
                 has_glove=user.glove_file_id is not None,
+                has_boot=user.boot_file_id is not None,
                 has_photos=photoset_is_complete(user.photoset),
             ),
             parse_mode="HTML",

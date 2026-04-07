@@ -71,8 +71,22 @@ class GloveColorCallback(CallbackData, prefix="glove_color"):
     color_id: int
 
 
+# Boot
+class BootBrandCallback(CallbackData, prefix="boot_brand"):
+    brand: str
+
+
+class BootModelCallback(CallbackData, prefix="boot_model"):
+    boot_id: int
+
+
+class BootColorCallback(CallbackData, prefix="boot_color"):
+    boot_id: int
+    color_id: int
+
+
 class OnboardingContinueCallback(CallbackData, prefix="onb_cont"):
-    action: str  # "helmet" | "photos"
+    action: str  # "helmet" | "jacket" | "photos"
 
 
 # ---------------------------------------------------------------------------
@@ -93,6 +107,7 @@ def main_menu_keyboard(
     has_helmet: bool,
     has_jacket: bool,
     has_glove: bool,
+    has_boot: bool,
     has_photos: bool,
 ) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
@@ -120,6 +135,12 @@ def main_menu_keyboard(
     else:
         builder.button(text="🧤 Выбрать перчатки", callback_data=MenuCallback(action="glove"))
 
+    if has_boot:
+        builder.button(text="👢 Изменить ботинки", callback_data=MenuCallback(action="boot"))
+        builder.button(text="❌ Убрать ботинки", callback_data=MenuCallback(action="boot_remove"))
+    else:
+        builder.button(text="👢 Выбрать ботинки", callback_data=MenuCallback(action="boot"))
+
     builder.button(
         text="📷 Изменить фото" if has_photos else "📷 Загрузить фото",
         callback_data=MenuCallback(action="photos")
@@ -128,7 +149,15 @@ def main_menu_keyboard(
     if has_bike and has_photos:
         builder.button(text="✨ Сгенерировать", callback_data=MenuCallback(action="generate"))
 
-    builder.adjust(1, 2 if has_helmet else 1, 2 if has_jacket else 1, 2 if has_glove else 1, 1, 1)
+    builder.adjust(
+        1,
+        2 if has_helmet else 1,
+        2 if has_jacket else 1,
+        2 if has_glove else 1,
+        2 if has_boot else 1,
+        1,
+        1,
+    )
     return builder.as_markup()
 
 
@@ -238,6 +267,25 @@ def glove_colors_keyboard(colors: list, glove_id: int) -> InlineKeyboardMarkup:
         builder.button(
             text=color.name,
             callback_data=GloveColorCallback(glove_id=glove_id, color_id=color.id)
+        )
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def boot_models_keyboard(boots: list) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for boot in boots:
+        builder.button(text=boot.model, callback_data=BootModelCallback(boot_id=boot.id))
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def boot_colors_keyboard(colors: list, boot_id: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for color in colors:
+        builder.button(
+            text=color.name,
+            callback_data=BootColorCallback(boot_id=boot_id, color_id=color.id)
         )
     builder.adjust(1)
     return builder.as_markup()

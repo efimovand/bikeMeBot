@@ -20,16 +20,6 @@ from utils import config_text, _config_msg_ids
 
 router = Router()
 
-ONBOARDING_TEXT = (
-    "👋 Привет! Это <b>MotoMe</b> — бот, который примерит на тебя любой мотоцикл и экип.\n\n"
-    "Как это работает:\n"
-    "1. Выбираешь байк и цвет\n"
-    "2. Выбираешь экипировку (по желанию)\n"
-    "3. Загружаешь 3 своих фото\n"
-    "4. ИИ генерирует фото, где ты уже на этом байке 🔥\n\n"
-    "Нажимая кнопку ниже, ты соглашаешься с политикой обработки данных."
-)
-
 
 async def send_main_menu(message_or_query, user, state: FSMContext):
     """Универсальная отправка главного меню. Всегда в единственном экземпляре."""
@@ -41,6 +31,7 @@ async def send_main_menu(message_or_query, user, state: FSMContext):
         has_helmet=user.helmet_file_id is not None,
         has_jacket=user.jacket_file_id is not None,
         has_glove=user.glove_file_id is not None,
+        has_boot=user.boot_file_id is not None,
         has_photos=db.photoset_is_complete(user.photoset),
     )
 
@@ -63,9 +54,9 @@ async def send_main_menu(message_or_query, user, state: FSMContext):
 
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
-    # if message.from_user.id != 370377802:  # TODO: Дебаг
-    #     await message.answer('Вам недоступен функционал BikeMeBot. Обратитесь к @efimov_and')
-    #     return
+    if message.from_user.id != 370377802:  # TODO: Дебаг
+        await message.answer('Вам недоступен функционал BikeMeBot. Обратитесь к @efimov_and')
+        return
 
     user, created = await db.get_or_create_user(
         tg_id=message.from_user.id,
@@ -102,7 +93,7 @@ async def policy_agreed(query: CallbackQuery, state: FSMContext):
     await state.update_data(onboarding=True)
     await state.set_state(BikeStates.choosing_brand)
 
-    await query.message.answer(  # answer вместо edit_text
+    await query.message.answer(
         "✅ Отлично! Давай выберем твой мотоцикл.\n\n"
         "🏍 <b>Выберите бренд:</b>",
         reply_markup=brands_keyboard(brands, BikeBrandCallback),
@@ -112,7 +103,6 @@ async def policy_agreed(query: CallbackQuery, state: FSMContext):
 
 @router.callback_query(OnboardingContinueCallback.filter(F.action == "helmet"), OnboardingStates.after_bike)
 async def onboarding_add_helmet(query: CallbackQuery, state: FSMContext):
-    """Пользователь хочет добавить шлем в онбординге."""
     await query.answer()
 
     brands = await db.get_helmet_brands()
@@ -143,7 +133,6 @@ async def onboarding_add_jacket(query: CallbackQuery, state: FSMContext):
 
 @router.callback_query(OnboardingContinueCallback.filter(F.action == "photos"), OnboardingStates.after_bike)
 async def onboarding_go_photos(query: CallbackQuery, state: FSMContext):
-    """Пользователь пропускает экип и переходит к фото."""
     await query.answer()
     await state.update_data(onboarding=True)
     await state.set_state(PhotoStates.waiting_front)
