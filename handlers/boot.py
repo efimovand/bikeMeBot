@@ -23,7 +23,7 @@ async def on_boot_menu(query: CallbackQuery, state: FSMContext):
     brands = await db.get_boot_brands()
     await state.set_state(BootStates.choosing_brand)
     await query.message.edit_text(
-        "👢 <b>Выберите бренд ботинок:</b>",
+        "🥾 <b>Выберите бренд ботинок:</b>",
         reply_markup=brands_keyboard(brands, BootBrandCallback),
         parse_mode="HTML",
     )
@@ -43,7 +43,7 @@ async def on_boot_brand(query: CallbackQuery, callback_data: BootBrandCallback, 
 
     photo_msg = await query.message.answer_photo(photo=FSInputFile(collage_path))
     text_msg = await query.message.answer(
-        f"👢 <b>{brand}</b> — выберите модель:",
+        f"🥾 <b>{brand}</b> — выберите модель:",
         reply_markup=boot_models_keyboard(boots),
         parse_mode="HTML",
     )
