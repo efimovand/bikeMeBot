@@ -20,10 +20,15 @@ router = Router()
 async def on_jacket_menu(query: CallbackQuery, state: FSMContext):
     await query.answer()
     brands = await db.get_jacket_brands()
+    user = await db.get_user_by_tg_id(query.from_user.id)
+
+    warning = ""
+    if user.suit_file_id is not None:
+        warning = "❗<b>Важно:</b> куртка заменит выбранный комбинезон\n\n"
 
     await state.set_state(JacketStates.choosing_brand)
     await query.message.edit_text(
-        "🧥 <b>Выберите бренд куртки:</b>",
+        f"{warning}🧥 <b>Выберите бренд куртки:</b>",
         reply_markup=brands_keyboard(brands, JacketBrandCallback),
         parse_mode="HTML",
     )

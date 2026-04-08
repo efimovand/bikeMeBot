@@ -56,11 +56,11 @@ def config_text(user: User) -> str:
 
     return (
         "⚙️ <b>Текущая конфигурация:</b>\n\n"
-        f"{bike_line}\n"
+        f"{bike_line}\n\n"
         f"{helmet_line}\n"
         f"{jacket_line}\n"
         f"{suit_line}\n"
         f"{glove_line}\n"
-        f"{boot_line}\n"
+        f"{boot_line}\n\n"
         f"{photos_line}"
     )
