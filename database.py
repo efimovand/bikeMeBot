@@ -13,6 +13,7 @@ from models import (
     Bike, BikeColor, BikeFile,
     Helmet, HelmetColor, HelmetFile,
     Jacket, JacketColor, JacketFile,
+    Suit, SuitColor, SuitFile,
     Glove, GloveColor, GloveFile,
     Boot, BootColor, BootFile,
 )
@@ -58,6 +59,8 @@ _USER_OPTIONS = [
     selectinload(User.helmet_file).selectinload(HelmetFile.color),
     selectinload(User.jacket_file).selectinload(JacketFile.jacket),
     selectinload(User.jacket_file).selectinload(JacketFile.color),
+    selectinload(User.suit_file).selectinload(SuitFile.suit),
+    selectinload(User.suit_file).selectinload(SuitFile.color),
     selectinload(User.glove_file).selectinload(GloveFile.glove),
     selectinload(User.glove_file).selectinload(GloveFile.color),
     selectinload(User.boot_file).selectinload(BootFile.boot),
@@ -382,6 +385,78 @@ async def clear_user_jacket_file(tg_id: int) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Suit
+# ---------------------------------------------------------------------------
+
+async def get_suit_brands() -> list[str]:
+    async with get_session() as session:
+        result = await session.execute(
+            select(Suit.brand).distinct().order_by(Suit.brand)
+        )
+        return list(result.scalars().all())
+
+
+async def get_suit_models(brand: str) -> list[Suit]:
+    async with get_session() as session:
+        result = await session.execute(
+            select(Suit).where(Suit.brand == brand).order_by(Suit.model)
+        )
+        return list(result.scalars().all())
+
+
+async def get_suit_colors(suit_id: int) -> list[SuitColor]:
+    async with get_session() as session:
+        result = await session.execute(
+            select(SuitColor)
+            .where(
+                (SuitColor.suit_id == suit_id) | (SuitColor.suit_id.is_(None))
+            )
+            .order_by(SuitColor.id)
+        )
+        return list(result.scalars().all())
+
+
+async def get_suit_file(suit_id: int, color_id: int) -> SuitFile | None:
+    async with get_session() as session:
+        result = await session.execute(
+            select(SuitFile)
+            .where(SuitFile.suit_id == suit_id, SuitFile.color_id == color_id)
+            .options(
+                selectinload(SuitFile.suit),
+                selectinload(SuitFile.color),
+            )
+        )
+        return result.scalar_one_or_none()
+
+
+async def get_suit_file_by_id(suit_file_id: int) -> SuitFile | None:
+    async with get_session() as session:
+        result = await session.execute(
+            select(SuitFile)
+            .where(SuitFile.id == suit_file_id)
+            .options(
+                selectinload(SuitFile.suit),
+                selectinload(SuitFile.color),
+            )
+        )
+        return result.scalar_one_or_none()
+
+
+async def update_user_suit_file(tg_id: int, suit_file_id: int) -> None:
+    async with get_session() as session:
+        await session.execute(
+            update(User).where(User.tg_id == tg_id).values(suit_file_id=suit_file_id)
+        )
+
+
+async def clear_user_suit_file(tg_id: int) -> None:
+    async with get_session() as session:
+        await session.execute(
+            update(User).where(User.tg_id == tg_id).values(suit_file_id=None)
+        )
+
+
+# ---------------------------------------------------------------------------
 # Glove
 # ---------------------------------------------------------------------------
 
@@ -556,6 +631,7 @@ async def create_generation(
     bike_file: BikeFile,
     helmet_file_id: int | None = None,
     jacket_file_id: int | None = None,
+    suit_file_id: int | None = None,
     glove_file_id: int | None = None,
     boot_file_id: int | None = None,
 ) -> Generation:
@@ -566,6 +642,7 @@ async def create_generation(
             bike_file_id=bike_file.id,
             helmet_file_id=helmet_file_id,
             jacket_file_id=jacket_file_id,
+            suit_file_id=suit_file_id,
             glove_file_id=glove_file_id,
             boot_file_id=boot_file_id,
             status="pending",
@@ -622,7 +699,7 @@ async def get_default_prompt() -> DictionaryPrompt | None:
 # ---------------------------------------------------------------------------
 
 async def get_brand_collage_state(type: str, brand: str):
-    model_map = {"helmet": Helmet, "jacket": Jacket, "glove": Glove, "boot": Boot}
+    model_map = {"helmet": Helmet, "jacket": Jacket, "suit": Suit, "glove": Glove, "boot": Boot}
     Model = model_map[type]
 
     async with get_session() as session:
@@ -646,6 +723,7 @@ async def get_color_collage_state(type: str, brand: str, model_id: int):
     file_map = {
         "helmet": (HelmetFile, HelmetFile.helmet_id),
         "jacket": (JacketFile, JacketFile.jacket_id),
+        "suit":   (SuitFile,   SuitFile.suit_id),
         "glove":  (GloveFile,  GloveFile.glove_id),
         "boot":   (BootFile,   BootFile.boot_id),
     }
@@ -702,6 +780,7 @@ async def get_items_for_collage(item_type: str, brand: str) -> list[tuple[str, s
     model_map = {
         "helmet": (Helmet, HelmetFile, Helmet.model),
         "jacket": (Jacket, JacketFile, Jacket.model),
+        "suit":   (Suit,   SuitFile,   Suit.model),
         "glove":  (Glove,  GloveFile,  Glove.model),
         "boot":   (Boot,   BootFile,   Boot.model),
     }
@@ -728,6 +807,7 @@ async def get_colors_for_collage(item_type: str, model_id: int) -> list[tuple[st
     file_map = {
         "helmet": (HelmetFile, HelmetFile.helmet_id),
         "jacket": (JacketFile, JacketFile.jacket_id),
+        "suit":   (SuitFile,   SuitFile.suit_id),
         "glove":  (GloveFile,  GloveFile.glove_id),
         "boot":   (BootFile,   BootFile.boot_id),
     }

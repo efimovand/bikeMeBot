@@ -181,6 +181,7 @@ async def generate_for_user(
     bike_file_path: str | Path,
     helmet_file_path: Optional[str | Path] = None,
     jacket_file_path: Optional[str | Path] = None,
+    suit_file_path: Optional[str | Path] = None,
     glove_file_path: Optional[str | Path] = None,
     boot_file_path: Optional[str | Path] = None,
     prompt: str = "",
@@ -207,6 +208,8 @@ async def generate_for_user(
         items.append((helmet_file_path, None))
     if jacket_file_path:
         items.append((jacket_file_path, None))
+    if suit_file_path:
+        items.append((suit_file_path, None))
     if glove_file_path:
         items.append((glove_file_path, None))
     if boot_file_path:

@@ -57,6 +57,20 @@ class JacketColorCallback(CallbackData, prefix="jacket_color"):
     color_id: int
 
 
+# Suit
+class SuitBrandCallback(CallbackData, prefix="suit_brand"):
+    brand: str
+
+
+class SuitModelCallback(CallbackData, prefix="suit_model"):
+    suit_id: int
+
+
+class SuitColorCallback(CallbackData, prefix="suit_color"):
+    suit_id: int
+    color_id: int
+
+
 # Glove
 class GloveBrandCallback(CallbackData, prefix="glove_brand"):
     brand: str
@@ -106,6 +120,7 @@ def main_menu_keyboard(
     has_bike: bool,
     has_helmet: bool,
     has_jacket: bool,
+    has_suit: bool,
     has_glove: bool,
     has_boot: bool,
     has_photos: bool,
@@ -128,6 +143,12 @@ def main_menu_keyboard(
         builder.button(text="❌ Убрать куртку", callback_data=MenuCallback(action="jacket_remove"))
     else:
         builder.button(text="🧥 Выбрать куртку", callback_data=MenuCallback(action="jacket"))
+
+    if has_suit:
+        builder.button(text="🏁 Изменить комбинезон", callback_data=MenuCallback(action="suit"))
+        builder.button(text="❌ Убрать комбинезон", callback_data=MenuCallback(action="suit_remove"))
+    else:
+        builder.button(text="🏁 Выбрать комбинезон", callback_data=MenuCallback(action="suit"))
 
     if has_glove:
         builder.button(text="🧤 Изменить перчатки", callback_data=MenuCallback(action="glove"))
@@ -153,6 +174,7 @@ def main_menu_keyboard(
         1,
         2 if has_helmet else 1,
         2 if has_jacket else 1,
+        2 if has_suit else 1,
         2 if has_glove else 1,
         2 if has_boot else 1,
         1,
@@ -248,6 +270,25 @@ def jacket_colors_keyboard(colors: list, jacket_id: int) -> InlineKeyboardMarkup
         builder.button(
             text=color.name,
             callback_data=JacketColorCallback(jacket_id=jacket_id, color_id=color.id)
+        )
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def suit_models_keyboard(suits: list) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for suit in suits:
+        builder.button(text=suit.model, callback_data=SuitModelCallback(suit_id=suit.id))
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def suit_colors_keyboard(colors: list, suit_id: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for color in colors:
+        builder.button(
+            text=color.name,
+            callback_data=SuitColorCallback(suit_id=suit_id, color_id=color.id)
         )
     builder.adjust(1)
     return builder.as_markup()

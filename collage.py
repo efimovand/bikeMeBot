@@ -27,6 +27,7 @@ FONT_REGULAR_PATH = None
 TYPE_SUBDIR = {
     "helmet": "helmets",
     "jacket": "jackets",
+    "suit":   "suits",
     "glove":  "gloves",
     "boot":   "boots",
 }

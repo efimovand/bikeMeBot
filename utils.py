@@ -33,6 +33,11 @@ def config_text(user: User) -> str:
     else:
         jacket_line = "🧥 Куртка: <b>не выбрана</b>"
 
+    if user.suit_file:
+        suit_line = f"🏁 Комбинезон: <b>{user.suit_file.suit.brand} {user.suit_file.suit.model} / {user.suit_file.color.name}</b>"
+    else:
+        suit_line = "🏁 Комбинезон: <b>не выбран</b>"
+
     if user.glove_file:
         glove_line = f"🧤 Перчатки: <b>{user.glove_file.glove.brand} {user.glove_file.glove.model} / {user.glove_file.color.name}</b>"
     else:
@@ -54,6 +59,7 @@ def config_text(user: User) -> str:
         f"{bike_line}\n"
         f"{helmet_line}\n"
         f"{jacket_line}\n"
+        f"{suit_line}\n"
         f"{glove_line}\n"
         f"{boot_line}\n"
         f"{photos_line}"

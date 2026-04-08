@@ -5,6 +5,7 @@ async def make_final_prompt(
     bike_file_id: int,
     helmet_file_id: int | None = None,
     jacket_file_id: int | None = None,
+    suit_file_id: int | None = None,
     glove_file_id: int | None = None,
     boot_file_id: int | None = None,
 ) -> str:
@@ -35,6 +36,16 @@ async def make_final_prompt(
         jacket_dict_text = jacket_dict_prompts[0].text
         jacket_prompt = jacket_dict_text.format(jacket_prompt=raw_jacket_prompt) if raw_jacket_prompt else jacket_dict_text.format(jacket_prompt="")
 
+    # --- Комбинезон (опционально) ---
+    has_suit = suit_file_id is not None
+    suit_prompt = "IMPORTANT: The person must be shown without a motorcycle suit, in their own clothing." if not has_suit else ""
+    if has_suit:
+        suit_file = await db.get_suit_file_by_id(suit_file_id)
+        raw_suit_prompt = suit_file.suit.prompt
+        suit_dict_prompts = await db.get_prompts_by_type("suit")
+        suit_dict_text = suit_dict_prompts[0].text
+        suit_prompt = suit_dict_text.format(suit_prompt=raw_suit_prompt) if raw_suit_prompt else suit_dict_text.format(suit_prompt="")
+
     # --- Перчатки (опционально) ---
     has_glove = glove_file_id is not None
     glove_prompt = "IMPORTANT: The person must be shown without motorcycle gloves, bare hands." if not has_glove else ""
@@ -58,6 +69,7 @@ async def make_final_prompt(
     # --- Финальный промпт ---
     helmet_photo_mention = ", a photo of a motorcycle helmet" if has_helmet else ""
     jacket_photo_mention = ", a photo of a motorcycle jacket" if has_jacket else ""
+    suit_photo_mention = ", a photo of a motorcycle suit" if has_suit else ""
     glove_photo_mention = ", a photo of motorcycle gloves" if has_glove else ""
     boot_photo_mention = ", a photo of motorcycle boots" if has_boot else ""
 
@@ -65,12 +77,14 @@ async def make_final_prompt(
     final_prompt = default.text.format(
         helmet_photo_mention=helmet_photo_mention,
         jacket_photo_mention=jacket_photo_mention,
+        suit_photo_mention=suit_photo_mention,
         glove_photo_mention=glove_photo_mention,
         boot_photo_mention=boot_photo_mention,
         bike_prompt=bike_prompt,
         location_prompt=location_prompt,
         helmet_prompt=helmet_prompt,
         jacket_prompt=jacket_prompt,
+        suit_prompt=suit_prompt,
         glove_prompt=glove_prompt,
         boot_prompt=boot_prompt,
     )

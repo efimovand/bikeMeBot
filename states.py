@@ -30,6 +30,12 @@ class JacketStates(StatesGroup):
     choosing_color = State()
 
 
+class SuitStates(StatesGroup):
+    choosing_brand = State()
+    choosing_model = State()
+    choosing_color = State()
+
+
 class GloveStates(StatesGroup):
     choosing_brand = State()
     choosing_model = State()
@@ -40,4 +46,3 @@ class BootStates(StatesGroup):
     choosing_brand = State()
     choosing_model = State()
     choosing_color = State()
-    
