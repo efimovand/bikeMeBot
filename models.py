@@ -153,6 +153,48 @@ class JacketFile(Base):
 
 
 # ---------------------------------------------------------------------------
+# Suit
+# ---------------------------------------------------------------------------
+
+class Suit(Base):
+    __tablename__ = "suit"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    brand: Mapped[str] = mapped_column(String(50))
+    model: Mapped[str] = mapped_column(String(50))
+    prompt: Mapped[str] = mapped_column(Text)
+
+    colors: Mapped[list["SuitColor"]] = relationship(back_populates="suit")
+    files: Mapped[list["SuitFile"]] = relationship(back_populates="suit")
+
+
+class SuitColor(Base):
+    __tablename__ = "suit_color"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(50))
+    suit_id: Mapped[int | None] = mapped_column(ForeignKey("suit.id"), nullable=True)
+
+    suit: Mapped["Suit | None"] = relationship(back_populates="colors")
+
+
+class SuitFile(Base):
+    __tablename__ = "suit_file"
+    __table_args__ = (
+        UniqueConstraint("suit_id", "color_id", name="uq_suit_file_suit_color"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    suit_id: Mapped[int] = mapped_column(ForeignKey("suit.id"))
+    color_id: Mapped[int] = mapped_column(ForeignKey("suit_color.id"))
+    description: Mapped[str] = mapped_column(String(255))
+    file: Mapped[str] = mapped_column(Text)
+
+    suit: Mapped["Suit"] = relationship(back_populates="files")
+    color: Mapped["SuitColor"] = relationship()
+
+
+# ---------------------------------------------------------------------------
 # Glove
 # ---------------------------------------------------------------------------
 
@@ -268,12 +310,14 @@ class User(Base):
     bike_file_id: Mapped[int | None] = mapped_column(ForeignKey("bike_file.id"), nullable=True)
     helmet_file_id: Mapped[int | None] = mapped_column(ForeignKey("helmet_file.id"), nullable=True)
     jacket_file_id: Mapped[int | None] = mapped_column(ForeignKey("jacket_file.id"), nullable=True)
+    suit_file_id: Mapped[int | None] = mapped_column(ForeignKey("suit_file.id"), nullable=True)
     glove_file_id: Mapped[int | None] = mapped_column(ForeignKey("glove_file.id"), nullable=True)
     boot_file_id: Mapped[int | None] = mapped_column(ForeignKey("boot_file.id"), nullable=True)
 
     bike_file: Mapped["BikeFile | None"] = relationship(foreign_keys=[bike_file_id])
     helmet_file: Mapped["HelmetFile | None"] = relationship(foreign_keys=[helmet_file_id])
     jacket_file: Mapped["JacketFile | None"] = relationship(foreign_keys=[jacket_file_id])
+    suit_file: Mapped["SuitFile | None"] = relationship(foreign_keys=[suit_file_id])
     glove_file: Mapped["GloveFile | None"] = relationship(foreign_keys=[glove_file_id])
     boot_file: Mapped["BootFile | None"] = relationship(foreign_keys=[boot_file_id])
     photoset: Mapped["UserPhotoset | None"] = relationship(back_populates="user", uselist=False)
@@ -307,6 +351,7 @@ class Generation(Base):
     bike_file_id: Mapped[int] = mapped_column(ForeignKey("bike_file.id"))
     helmet_file_id: Mapped[int | None] = mapped_column(ForeignKey("helmet_file.id"), nullable=True)
     jacket_file_id: Mapped[int | None] = mapped_column(ForeignKey("jacket_file.id"), nullable=True)
+    suit_file_id: Mapped[int | None] = mapped_column(ForeignKey("suit_file.id"), nullable=True)
     glove_file_id: Mapped[int | None] = mapped_column(ForeignKey("glove_file.id"), nullable=True)
     boot_file_id: Mapped[int | None] = mapped_column(ForeignKey("boot_file.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(10), default="pending")  # pending / success / failed
@@ -316,6 +361,7 @@ class Generation(Base):
     bike_file: Mapped["BikeFile"] = relationship(foreign_keys=[bike_file_id])
     helmet_file: Mapped["HelmetFile | None"] = relationship(foreign_keys=[helmet_file_id])
     jacket_file: Mapped["JacketFile | None"] = relationship(foreign_keys=[jacket_file_id])
+    suit_file: Mapped["SuitFile | None"] = relationship(foreign_keys=[suit_file_id])
     glove_file: Mapped["GloveFile | None"] = relationship(foreign_keys=[glove_file_id])
     boot_file: Mapped["BootFile | None"] = relationship(foreign_keys=[boot_file_id])
 
@@ -328,7 +374,7 @@ class DictionaryPrompt(Base):
     __tablename__ = "dictionary_prompt"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    type: Mapped[str] = mapped_column(String(10))   # default / helmet / jacket / glove / boot
+    type: Mapped[str] = mapped_column(String(10))   # default / helmet / jacket / suit / glove / boot
     text: Mapped[str] = mapped_column(Text)
 
 
