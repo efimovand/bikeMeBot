@@ -30,6 +30,7 @@ async def send_main_menu(message_or_query, user, state: FSMContext):
         has_bike=user.bike_file_id is not None,
         has_helmet=user.helmet_file_id is not None,
         has_jacket=user.jacket_file_id is not None,
+        has_suit=user.suit_file_id is not None,
         has_glove=user.glove_file_id is not None,
         has_boot=user.boot_file_id is not None,
         has_photos=db.photoset_is_complete(user.photoset),

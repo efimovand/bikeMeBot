@@ -26,25 +26,31 @@ async def make_final_prompt(
         helmet_dict_text = helmet_dict_prompts[0].text
         helmet_prompt = helmet_dict_text.format(helmet_prompt=raw_helmet_prompt) if raw_helmet_prompt else helmet_dict_text.format(helmet_prompt="")
 
-    # --- Куртка (опционально) ---
+    # --- Куртка / Комбинезон (взаимоисключающие) ---
     has_jacket = jacket_file_id is not None
-    jacket_prompt = "IMPORTANT: The person must be shown without a motorcycle jacket, in their own clothing." if not has_jacket else ""
+    has_suit = suit_file_id is not None
+
     if has_jacket:
         jacket_file = await db.get_jacket_file_by_id(jacket_file_id)
         raw_jacket_prompt = jacket_file.jacket.prompt
         jacket_dict_prompts = await db.get_prompts_by_type("jacket")
         jacket_dict_text = jacket_dict_prompts[0].text
-        jacket_prompt = jacket_dict_text.format(jacket_prompt=raw_jacket_prompt) if raw_jacket_prompt else jacket_dict_text.format(jacket_prompt="")
+        jacket_prompt = jacket_dict_text.format(
+            jacket_prompt=raw_jacket_prompt) if raw_jacket_prompt else jacket_dict_text.format(jacket_prompt="")
+        suit_prompt = ""
 
-    # --- Комбинезон (опционально) ---
-    has_suit = suit_file_id is not None
-    suit_prompt = "IMPORTANT: The person must be shown without a motorcycle suit, in their own clothing." if not has_suit else ""
-    if has_suit:
+    elif has_suit:
         suit_file = await db.get_suit_file_by_id(suit_file_id)
         raw_suit_prompt = suit_file.suit.prompt
         suit_dict_prompts = await db.get_prompts_by_type("suit")
         suit_dict_text = suit_dict_prompts[0].text
-        suit_prompt = suit_dict_text.format(suit_prompt=raw_suit_prompt) if raw_suit_prompt else suit_dict_text.format(suit_prompt="")
+        suit_prompt = suit_dict_text.format(suit_prompt=raw_suit_prompt) if raw_suit_prompt else suit_dict_text.format(
+            suit_prompt="")
+        jacket_prompt = ""
+
+    else:
+        jacket_prompt = "IMPORTANT: The person must be shown in their own clothing — no motorcycle jacket or suit."
+        suit_prompt = ""
 
     # --- Перчатки (опционально) ---
     has_glove = glove_file_id is not None

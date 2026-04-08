@@ -119,8 +119,8 @@ async def run_generation(message_or_query, tg_id: int):
     if True:
         waiting_msg = await target.answer(
             "⏳ <b>Генерация началась!</b>\n\n"
-            f"[{'░' * BAR_LENGTH}] 0%\n\n"
-            "<i>Загружаю фото...</i>",
+            f"[{'░' * BAR_LENGTH}] 0%\n"
+            "<i>Загружаем фото...</i>",
             parse_mode="HTML",
         )
 

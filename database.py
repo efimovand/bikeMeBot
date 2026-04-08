@@ -373,7 +373,7 @@ async def get_jacket_file_by_id(jacket_file_id: int) -> JacketFile | None:
 async def update_user_jacket_file(tg_id: int, jacket_file_id: int) -> None:
     async with get_session() as session:
         await session.execute(
-            update(User).where(User.tg_id == tg_id).values(jacket_file_id=jacket_file_id)
+            update(User).where(User.tg_id == tg_id).values(jacket_file_id=jacket_file_id, suit_file_id=None)
         )
 
 
@@ -445,7 +445,7 @@ async def get_suit_file_by_id(suit_file_id: int) -> SuitFile | None:
 async def update_user_suit_file(tg_id: int, suit_file_id: int) -> None:
     async with get_session() as session:
         await session.execute(
-            update(User).where(User.tg_id == tg_id).values(suit_file_id=suit_file_id)
+            update(User).where(User.tg_id == tg_id).values(suit_file_id=suit_file_id, jacket_file_id=None)
         )
 
 
