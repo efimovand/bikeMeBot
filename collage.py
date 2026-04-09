@@ -9,17 +9,21 @@ import database as db
 
 BASE_DIR = Path(__file__).resolve().parent / "media"
 
+
 CARD_SIZE = 400
 COLS = 3
-GAP = 8
-PADDING = 12
+GAP = 16
+PADDING = 24
 
 BG_COLOR = (15, 25, 35)
-ACCENT = (232, 102, 10)
-PLATE_BG = (10, 18, 27, 215)
+CARD_BG = (25, 35, 45)
+CARD_BORDER = (40, 50, 60)
 TEXT_PRIMARY = (220, 231, 240)
 TEXT_ACCENT = (232, 102, 10)
-PLATE_H = 46
+ACCENT_LINE_C = (232, 102, 10)
+
+PLATE_H = 70
+CORNER_RADIUS = 12
 
 FONT_BOLD_PATH = None
 FONT_REGULAR_PATH = None
@@ -49,7 +53,6 @@ def _load_font(path, size):
         path,
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
         "C:/Windows/Fonts/arial.ttf",
     ]
     for candidate in candidates:
@@ -62,8 +65,8 @@ def _load_font(path, size):
     return ImageFont.load_default()
 
 
-font_brand = _load_font(FONT_BOLD_PATH, 10)
-font_model = _load_font(FONT_REGULAR_PATH, 13)
+font_brand = _load_font(FONT_REGULAR_PATH, 16)
+font_model = _load_font(FONT_BOLD_PATH, 22)
 
 
 # -------------------------------------------------------------------
@@ -74,7 +77,8 @@ def load_image(path: str) -> Image.Image:
     if not path:
         raise ValueError("Empty image path")
     if path.startswith("http"):
-        resp = requests.get(path, timeout=5)
+        headers = {"User-Agent": "Mozilla/5.0 CollageGenerator/1.0"}
+        resp = requests.get(path, timeout=10, headers=headers)
         return Image.open(BytesIO(resp.content))
     full_path = BASE_DIR / Path(path)
     if not full_path.exists():
@@ -87,58 +91,69 @@ def load_image(path: str) -> Image.Image:
 # -------------------------------------------------------------------
 
 def _fit_on_white(img: Image.Image, w: int, h: int) -> Image.Image:
+    """Вписывает изображение в заданный размер на чисто БЕЛЫЙ фон."""
     ratio = min(w / img.width, h / img.height) * 0.85
     nw, nh = int(img.width * ratio), int(img.height * ratio)
     img = img.resize((nw, nh), Image.LANCZOS)
+
     bg = Image.new("RGB", (w, h), (255, 255, 255))
     x, y = (w - nw) // 2, (h - nh) // 2
-    bg.paste(img, (x, y), img) if img.mode == "RGBA" else bg.paste(img, (x, y))
+
+    if img.mode == "RGBA":
+        bg.paste(img, (x, y), img)
+    else:
+        bg.paste(img, (x, y))
     return bg
 
 
-def _draw_triangle(draw, x, y, size, color):
-    draw.polygon([(x + size // 2, y), (x + size, y + size), (x, y + size)], fill=color)
-
-
 def _truncate(draw, text, font, max_w):
-    while draw.textlength(text, font=font) > max_w and len(text) > 1:
+    """Отрезает текст, если он не влезает, добавляя многоточие."""
+    if draw.textlength(text, font=font) <= max_w:
+        return text
+
+    while draw.textlength(text + "...", font=font) > max_w and len(text) > 1:
         text = text[:-1]
-    return text.rstrip()
+    return text.rstrip() + "..."
 
 
 def _draw_card(label_top: str, label_bottom: str, photo_path: str | None) -> Image.Image:
-    card = Image.new("RGB", (CARD_SIZE, CARD_SIZE), (255, 255, 255))
+    """Белый фон под фото + темный подвал для текста."""
+    card = Image.new("RGBA", (CARD_SIZE, CARD_SIZE), (255, 255, 255))
+    draw = ImageDraw.Draw(card)
+
     photo_h = CARD_SIZE - PLATE_H
 
     if photo_path:
         try:
             photo = load_image(photo_path).convert("RGBA")
-            photo = _fit_on_white(photo, CARD_SIZE, photo_h)
-            card.paste(photo, (0, 0))
+            photo_fitted = _fit_on_white(photo, CARD_SIZE, photo_h)
+            card.paste(photo_fitted, (0, 0))
         except Exception as e:
-            print("Image error:", e)
+            print(f"Error loading image: {e}")
 
-    grad = Image.new("RGBA", (CARD_SIZE, 32), (0, 0, 0, 0))
-    gd = ImageDraw.Draw(grad)
-    for i in range(32):
-        gd.line([(0, i), (CARD_SIZE, i)], fill=(0, 0, 0, int(170 * i / 32)))
-    card_rgba = card.convert("RGBA")
-    card_rgba.paste(grad, (0, photo_h - 10), grad)
-    card = card_rgba.convert("RGB")
+    draw.rectangle([(0, photo_h), (CARD_SIZE, CARD_SIZE)], fill=BG_COLOR)
 
-    overlay = Image.new("RGBA", (CARD_SIZE, PLATE_H), PLATE_BG)
-    card_rgba = card.convert("RGBA")
-    card_rgba.paste(overlay, (0, photo_h), overlay)
-    card = card_rgba.convert("RGB")
+    draw.line([(0, photo_h), (CARD_SIZE, photo_h)], fill=TEXT_ACCENT, width=2)
 
-    draw = ImageDraw.Draw(card)
-    draw.line([(0, photo_h), (CARD_SIZE, photo_h)], fill=ACCENT, width=2)
-    _draw_triangle(draw, 10, photo_h + 7, 6, ACCENT)
-    draw.text((20, photo_h + 6), label_top.upper(), font=font_brand, fill=TEXT_ACCENT)
-    name = _truncate(draw, label_bottom, font_model, CARD_SIZE - 18)
-    draw.text((10, photo_h + 21), name, font=font_model, fill=TEXT_PRIMARY)
+    text_w_limit = CARD_SIZE - 30
 
-    return card
+    brand_txt = _truncate(draw, label_top.upper(), font_brand, text_w_limit)
+    draw.text((15, photo_h + 10), brand_txt, font=font_brand, fill=TEXT_ACCENT)
+
+    model_txt = _truncate(draw, label_bottom, font_model, text_w_limit)
+    draw.text((15, photo_h + 32), model_txt, font=font_model, fill=TEXT_PRIMARY)
+
+    mask = Image.new("L", (CARD_SIZE, CARD_SIZE), 0)
+    mask_draw = ImageDraw.Draw(mask)
+    mask_draw.rounded_rectangle((0, 0, CARD_SIZE, CARD_SIZE), CORNER_RADIUS, fill=255)
+
+    final_card = Image.new("RGBA", (CARD_SIZE, CARD_SIZE), (0, 0, 0, 0))
+    final_card.paste(card, (0, 0), mask=mask)
+
+    final_draw = ImageDraw.Draw(final_card)
+    final_draw.rounded_rectangle((0, 0, CARD_SIZE - 1, CARD_SIZE - 1), CORNER_RADIUS, outline=CARD_BORDER, width=1)
+
+    return final_card
 
 
 # -------------------------------------------------------------------
@@ -164,9 +179,12 @@ def _build_collage(items: list[ItemView], out_path: Path) -> Path:
         col, row = idx % COLS, idx // COLS
         x = PADDING + col * (CARD_SIZE + GAP)
         y = PADDING + row * (CARD_SIZE + GAP)
-        canvas.paste(_draw_card(item.label_top, item.label_bottom, item.photo_path), (x, y))
 
-    canvas.save(out_path, "JPEG", quality=100, optimize=True)
+        card_img = _draw_card(item.label_top, item.label_bottom, item.photo_path)
+
+        canvas.paste(card_img, (x, y), card_img)
+
+    canvas.save(out_path, "JPEG", quality=95, optimize=True)
     return out_path
 
 
