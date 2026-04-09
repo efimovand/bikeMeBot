@@ -49,7 +49,7 @@ def config_text(user: User) -> str:
         boot_line = "🥾 Ботинки: <b>не выбраны</b>"
 
     photos_line = (
-        "📷 Ваши фото: ✅"
+        "📷 Ваши фото: ☑️"
         if photoset_is_complete(user.photoset)
         else "📷 Ваши фото: <b>не загружены</b>"
     )
