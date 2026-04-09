@@ -136,7 +136,7 @@ async def create_task(
 # Поллинг
 # ---------------------------------------------------------------------------
 
-async def poll_until_done(task_id: str, api_key: str, interval: int = 15) -> list[str]:
+async def poll_until_done(task_id: str, api_key: str, interval: int = 10) -> list[str]:
     async with make_session() as s:
         while True:
             async with s.get(
