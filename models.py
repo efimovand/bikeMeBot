@@ -19,6 +19,7 @@ class Location(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(50))
+    description: Mapped[str | None] = mapped_column(String(100), nullable=True)
     prompt: Mapped[str] = mapped_column(Text)
 
     bikes: Mapped[list["Bike"]] = relationship(back_populates="location")
@@ -313,6 +314,7 @@ class User(Base):
     suit_file_id: Mapped[int | None] = mapped_column(ForeignKey("suit_file.id"), nullable=True)
     glove_file_id: Mapped[int | None] = mapped_column(ForeignKey("glove_file.id"), nullable=True)
     boot_file_id: Mapped[int | None] = mapped_column(ForeignKey("boot_file.id"), nullable=True)
+    location_id: Mapped[int | None] = mapped_column(ForeignKey("location.id"), nullable=True)
 
     bike_file: Mapped["BikeFile | None"] = relationship(foreign_keys=[bike_file_id])
     helmet_file: Mapped["HelmetFile | None"] = relationship(foreign_keys=[helmet_file_id])
@@ -320,6 +322,7 @@ class User(Base):
     suit_file: Mapped["SuitFile | None"] = relationship(foreign_keys=[suit_file_id])
     glove_file: Mapped["GloveFile | None"] = relationship(foreign_keys=[glove_file_id])
     boot_file: Mapped["BootFile | None"] = relationship(foreign_keys=[boot_file_id])
+    location: Mapped["Location | None"] = relationship(foreign_keys=[location_id])
     photoset: Mapped["UserPhotoset | None"] = relationship(back_populates="user", uselist=False)
     generations: Mapped[list["Generation"]] = relationship(back_populates="user")
 
