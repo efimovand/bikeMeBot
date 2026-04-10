@@ -305,8 +305,8 @@ class User(Base):
     name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     city: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    spent_stars: Mapped[int] = mapped_column(Integer, default=0)
     balance: Mapped[int] = mapped_column(Integer, default=0)
+    spent_stars: Mapped[int] = mapped_column(Integer, default=0)
 
     bike_file_id: Mapped[int | None] = mapped_column(ForeignKey("bike_file.id"), nullable=True)
     helmet_file_id: Mapped[int | None] = mapped_column(ForeignKey("helmet_file.id"), nullable=True)
@@ -351,13 +351,13 @@ class Generation(Base):
     updated_date: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
     account_id: Mapped[int] = mapped_column(ForeignKey("account.id"))
+    status: Mapped[str] = mapped_column(String(10), default="pending")  # pending / success / failed
     bike_file_id: Mapped[int] = mapped_column(ForeignKey("bike_file.id"))
     helmet_file_id: Mapped[int | None] = mapped_column(ForeignKey("helmet_file.id"), nullable=True)
     jacket_file_id: Mapped[int | None] = mapped_column(ForeignKey("jacket_file.id"), nullable=True)
     suit_file_id: Mapped[int | None] = mapped_column(ForeignKey("suit_file.id"), nullable=True)
     glove_file_id: Mapped[int | None] = mapped_column(ForeignKey("glove_file.id"), nullable=True)
     boot_file_id: Mapped[int | None] = mapped_column(ForeignKey("boot_file.id"), nullable=True)
-    status: Mapped[str] = mapped_column(String(10), default="pending")  # pending / success / failed
 
     user: Mapped["User"] = relationship(back_populates="generations")
     account: Mapped["Account"] = relationship()
