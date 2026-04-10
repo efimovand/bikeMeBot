@@ -19,45 +19,45 @@ def read_media_bytes(relative_path: str) -> bytes:
 
 def config_text(user: User) -> str:
     if user.bike_file:
-        bike_line = f"🏍 Мотоцикл: <b>{user.bike_file.bike.brand} {user.bike_file.bike.model} / {user.bike_file.color.name}</b>"
+        bike_line = f"🏍 <b>Мотоцикл:</b> {user.bike_file.bike.brand} {user.bike_file.bike.model} / {user.bike_file.color.name}"
     else:
-        bike_line = "🏍 Мотоцикл: <b>не выбран</b>"
+        bike_line = "🏍 <b>Мотоцикл:</b> <i>не выбран</i>"
 
     if user.location:
         location_label = user.location.description or user.location.name
-        location_line = f"📍 Локация: <b>{location_label}</b>"
+        location_line = f"📍 <b>Локация:</b> {location_label}"
     else:
-        location_line = "📍 Локация: <b>по умолчанию</b>"
+        location_line = "📍 <b>Локация:</b> <i>по умолчанию</i>"
 
     if user.helmet_file:
-        helmet_line = f"🪖 Шлем: <b>{user.helmet_file.helmet.brand} {user.helmet_file.helmet.model} / {user.helmet_file.color.name}</b>"
+        helmet_line = f"🪖 <b>Шлем:</b> {user.helmet_file.helmet.brand} {user.helmet_file.helmet.model} / {user.helmet_file.color.name}"
     else:
-        helmet_line = "🪖 Шлем: <b>не выбран</b>"
+        helmet_line = "🪖 <b>Шлем:</b> <i>не выбран</i>"
 
     if user.jacket_file:
-        jacket_line = f"🧥 Куртка: <b>{user.jacket_file.jacket.brand} {user.jacket_file.jacket.model} / {user.jacket_file.color.name}</b>"
+        jacket_line = f"🧥 <b>Куртка:</b> {user.jacket_file.jacket.brand} {user.jacket_file.jacket.model} / {user.jacket_file.color.name}"
     else:
-        jacket_line = "🧥 Куртка: <b>не выбрана</b>"
+        jacket_line = "🧥 <b>Куртка:</b> <i>не выбрана</i>"
 
     if user.suit_file:
-        suit_line = f"🏁 Комбинезон: <b>{user.suit_file.suit.brand} {user.suit_file.suit.model} / {user.suit_file.color.name}</b>"
+        suit_line = f"🏁 <b>Комбинезон:</b> {user.suit_file.suit.brand} {user.suit_file.suit.model} / {user.suit_file.color.name}"
     else:
-        suit_line = "🏁 Комбинезон: <b>не выбран</b>"
+        suit_line = "🏁 <b>Комбинезон:</b> <i>не выбран</i>"
 
     if user.glove_file:
-        glove_line = f"🧤 Перчатки: <b>{user.glove_file.glove.brand} {user.glove_file.glove.model} / {user.glove_file.color.name}</b>"
+        glove_line = f"🧤 <b>Перчатки:</b> {user.glove_file.glove.brand} {user.glove_file.glove.model} / {user.glove_file.color.name}"
     else:
-        glove_line = "🧤 Перчатки: <b>не выбраны</b>"
+        glove_line = "🧤 <b>Перчатки:</b> <i>не выбраны</i>"
 
     if user.boot_file:
-        boot_line = f"🥾 Ботинки: <b>{user.boot_file.boot.brand} {user.boot_file.boot.model} / {user.boot_file.color.name}</b>"
+        boot_line = f"🥾 <b>Ботинки:</b> {user.boot_file.boot.brand} {user.boot_file.boot.model} / {user.boot_file.color.name}"
     else:
-        boot_line = "🥾 Ботинки: <b>не выбраны</b>"
+        boot_line = "🥾 <b>Ботинки:</b> <i>не выбраны</i>"
 
     photos_line = (
-        "📷 Ваши фото: ☑️"
+        "📷 <b>Ваши фото:</b> ☑️"
         if photoset_is_complete(user.photoset)
-        else "📷 Ваши фото: <b>не загружены</b>"
+        else "📷 <b>Ваши фото:</b> <i>не загружены</i>"
     )
 
     return (
