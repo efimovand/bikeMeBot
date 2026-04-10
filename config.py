@@ -1,8 +1,20 @@
+import json
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 BASE_DIR = Path(__file__).resolve().parent
+INVITED_USERS_FILE = BASE_DIR / "invited_users.json"
+
+
+def load_invited_users() -> set[int]:
+    if not INVITED_USERS_FILE.exists():
+        return set()
+    try:
+        data = json.loads(INVITED_USERS_FILE.read_text(encoding="utf-8"))
+        return {int(uid) for uid in data}
+    except Exception:
+        return set()
 
 
 class Settings(BaseSettings):

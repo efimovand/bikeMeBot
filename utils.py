@@ -54,7 +54,7 @@ def config_text(user: User) -> str:
     else:
         boot_line = "🥾 <b>Ботинки:</b> <i>не выбраны</i>"
 
-    balance_line = f"\n⭐️ <b>Баланс:</b> {user.balance}" if user.balance > 0 else ""
+    balance_line = f"⭐️ <b>Баланс:</b> {user.balance}" if user.balance > 0 else ""
 
     photos_line = (
         "📷 <b>Ваши фото:</b> ☑️"

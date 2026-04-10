@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 import database as db
+from config import load_invited_users
 from keyboards import (
     BikeBrandCallback,
     HelmetBrandCallback,
@@ -19,6 +20,9 @@ from utils import config_text, _config_msg_ids
 
 
 router = Router()
+
+INVITED_BONUS = 50
+_bonus_pending: set[int] = set()
 
 
 async def send_main_menu(message_or_query, user, state: FSMContext):
@@ -37,6 +41,19 @@ async def send_main_menu(message_or_query, user, state: FSMContext):
     )
 
     tg_id = user.tg_id
+
+    if isinstance(message_or_query, Message):
+        answer_target = message_or_query
+    else:
+        answer_target = message_or_query.message
+
+    if tg_id in _bonus_pending:
+        _bonus_pending.discard(tg_id)
+        await answer_target.answer(
+            f"🎉 Вы находитесь в списке приглашённых пользователей.\n\n"
+            f"Вам на баланс начислено ⭐️ {INVITED_BONUS} генераций.\n\n"
+            f"Приятного использования!",
+        )
 
     if isinstance(message_or_query, Message):
         old_msg_id = _config_msg_ids.pop(tg_id, None)
@@ -67,6 +84,10 @@ async def cmd_start(message: Message, state: FSMContext):
     if not created:
         await send_main_menu(message, user, state)
         return
+
+    if message.from_user.id in load_invited_users():
+        await db.add_balance(message.from_user.id, INVITED_BONUS)
+        _bonus_pending.add(message.from_user.id)
 
     await state.set_state(OnboardingStates.waiting_policy)
     await message.answer(
