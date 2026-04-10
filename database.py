@@ -87,7 +87,7 @@ async def get_or_create_user(tg_id: int, name: str | None = None) -> tuple[User,
         if user is not None:
             return user, False
 
-        user = User(tg_id=tg_id, name=name)
+        user = User(tg_id=tg_id, name=name, balance=1)
         session.add(user)
         await session.flush()
         return user, True

@@ -50,8 +50,8 @@ async def send_main_menu(message_or_query, user, state: FSMContext):
     if tg_id in _bonus_pending:
         _bonus_pending.discard(tg_id)
         await answer_target.answer(
-            f"🎉 Вы находитесь в списке приглашённых пользователей.\n\n"
-            f"Вам на баланс начислено ⭐️ {INVITED_BONUS} генераций.\n\n"
+            f"🎉 Вы находитесь в списке приглашённых пользователей.\n"
+            f"Вам на баланс начислено ⭐️ {INVITED_BONUS} генераций.\n"
             f"Приятного использования!",
         )
 
