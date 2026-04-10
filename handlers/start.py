@@ -47,14 +47,6 @@ async def send_main_menu(message_or_query, user, state: FSMContext):
     else:
         answer_target = message_or_query.message
 
-    if tg_id in _bonus_pending:
-        _bonus_pending.discard(tg_id)
-        await answer_target.answer(
-            f"🎉 Вы находитесь в списке приглашённых пользователей.\n"
-            f"Вам на баланс начислено ⭐️ {INVITED_BONUS} генераций.\n"
-            f"Приятного использования!",
-        )
-
     if isinstance(message_or_query, Message):
         old_msg_id = _config_msg_ids.pop(tg_id, None)
         if old_msg_id:
@@ -68,6 +60,14 @@ async def send_main_menu(message_or_query, user, state: FSMContext):
     else:
         await message_or_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
         _config_msg_ids[tg_id] = message_or_query.message.message_id
+
+    if tg_id in _bonus_pending:
+        _bonus_pending.discard(tg_id)
+        await answer_target.answer(
+            f"🎉 Вы находитесь в списке приглашённых пользователей.\n"
+            f"Вам на баланс начислено ⭐️ {INVITED_BONUS} генераций.\n"
+            f"Приятного использования!",
+        )
 
 
 @router.message(CommandStart())
