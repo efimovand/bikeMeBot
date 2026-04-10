@@ -12,7 +12,7 @@ class PolicyCallback(CallbackData, prefix="policy"):
 
 
 class MenuCallback(CallbackData, prefix="menu"):
-    action: str  # bike / helmet / photos / generate / location
+    action: str  # bike / helmet / photos / generate / location / topup
 
 
 # Bike
@@ -175,6 +175,12 @@ def main_menu_keyboard(
     else:
         builder.button(text="🥾 Выбрать ботинки", callback_data=MenuCallback(action="boot"))
 
+    # Пополнить баланс — всегда видна, над кнопкой фото
+    builder.button(
+        text="⭐️ Пополнить баланс",
+        callback_data=MenuCallback(action="topup")
+    )
+
     builder.button(
         text="📷 Изменить фото" if has_photos else "📷 Загрузить фото",
         callback_data=MenuCallback(action="photos")
@@ -191,6 +197,7 @@ def main_menu_keyboard(
         2 if has_suit else 1,
         2 if has_glove else 1,
         2 if has_boot else 1,
+        1,  # пополнить баланс
         1,  # фото
         1,  # генерация (если есть)
     )
