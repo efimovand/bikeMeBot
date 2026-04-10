@@ -3,6 +3,7 @@ import database as db
 
 async def make_final_prompt(
     bike_file_id: int,
+    location_id: int | None = None,
     helmet_file_id: int | None = None,
     jacket_file_id: int | None = None,
     suit_file_id: int | None = None,
@@ -12,7 +13,12 @@ async def make_final_prompt(
     # --- Байк + локация ---
     bike_file = await db.get_bike_file_by_id(bike_file_id)
     raw_bike_prompt = bike_file.bike.prompt
-    location_prompt = bike_file.bike.location.prompt
+
+    if location_id is not None:
+        location = await db.get_location_by_id(location_id)
+        location_prompt = location.prompt if location else bike_file.bike.location.prompt
+    else:
+        location_prompt = bike_file.bike.location.prompt
 
     bike_prompt = f"Motorcycle ergonomics and scale: {raw_bike_prompt}" if raw_bike_prompt else ""
 

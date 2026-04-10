@@ -23,6 +23,12 @@ def config_text(user: User) -> str:
     else:
         bike_line = "🏍 Мотоцикл: <b>не выбран</b>"
 
+    if user.location:
+        location_label = user.location.description or user.location.name
+        location_line = f"📍 Локация: <b>{location_label}</b>"
+    else:
+        location_line = "📍 Локация: <b>по умолчанию</b>"
+
     if user.helmet_file:
         helmet_line = f"🪖 Шлем: <b>{user.helmet_file.helmet.brand} {user.helmet_file.helmet.model} / {user.helmet_file.color.name}</b>"
     else:
@@ -56,7 +62,8 @@ def config_text(user: User) -> str:
 
     return (
         "⚙️ <b>Текущая конфигурация:</b>\n\n"
-        f"{bike_line}\n\n"
+        f"{bike_line}\n"
+        f"{location_line}\n\n"
         f"{helmet_line}\n"
         f"{jacket_line}\n"
         f"{suit_line}\n"

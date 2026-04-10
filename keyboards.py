@@ -12,7 +12,7 @@ class PolicyCallback(CallbackData, prefix="policy"):
 
 
 class MenuCallback(CallbackData, prefix="menu"):
-    action: str  # bike / helmet / photos / generate
+    action: str  # bike / helmet / photos / generate / location
 
 
 # Bike
@@ -99,6 +99,15 @@ class BootColorCallback(CallbackData, prefix="boot_color"):
     color_id: int
 
 
+# Location
+class LocationCallback(CallbackData, prefix="location"):
+    location_id: int
+
+
+class LocationResetCallback(CallbackData, prefix="location_reset"):
+    pass
+
+
 class OnboardingContinueCallback(CallbackData, prefix="onb_cont"):
     action: str  # "helmet" | "jacket" | "photos"
 
@@ -130,6 +139,10 @@ def main_menu_keyboard(
     builder.button(
         text="🏍 Изменить мотоцикл" if has_bike else "🏍 Выбрать мотоцикл",
         callback_data=MenuCallback(action="bike")
+    )
+    builder.button(
+        text="📍 Изменить локацию",
+        callback_data=MenuCallback(action="location")
     )
 
     if has_helmet:
@@ -171,15 +184,32 @@ def main_menu_keyboard(
         builder.button(text="✨ Сгенерировать", callback_data=MenuCallback(action="generate"))
 
     builder.adjust(
-        1,
+        1,  # мотоцикл
+        1,  # локация
         2 if has_helmet else 1,
         2 if has_jacket else 1,
         2 if has_suit else 1,
         2 if has_glove else 1,
         2 if has_boot else 1,
-        1,
-        1,
+        1,  # фото
+        1,  # генерация (если есть)
     )
+    return builder.as_markup()
+
+
+def locations_keyboard(locations: list) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="🏍 По умолчанию",
+        callback_data=LocationResetCallback()
+    )
+    for loc in locations:
+        label = loc.description or loc.name
+        builder.button(
+            text=label,
+            callback_data=LocationCallback(location_id=loc.id)
+        )
+    builder.adjust(1)
     return builder.as_markup()
 
 

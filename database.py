@@ -65,6 +65,7 @@ _USER_OPTIONS = [
     selectinload(User.glove_file).selectinload(GloveFile.color),
     selectinload(User.boot_file).selectinload(BootFile.boot),
     selectinload(User.boot_file).selectinload(BootFile.color),
+    selectinload(User.location),
     selectinload(User.photoset),
 ]
 
@@ -189,6 +190,28 @@ async def get_all_locations() -> list[Location]:
     async with get_session() as session:
         result = await session.execute(select(Location).order_by(Location.name))
         return list(result.scalars().all())
+
+
+async def get_location_by_id(location_id: int) -> Location | None:
+    async with get_session() as session:
+        result = await session.execute(
+            select(Location).where(Location.id == location_id)
+        )
+        return result.scalar_one_or_none()
+
+
+async def update_user_location(tg_id: int, location_id: int) -> None:
+    async with get_session() as session:
+        await session.execute(
+            update(User).where(User.tg_id == tg_id).values(location_id=location_id)
+        )
+
+
+async def clear_user_location(tg_id: int) -> None:
+    async with get_session() as session:
+        await session.execute(
+            update(User).where(User.tg_id == tg_id).values(location_id=None)
+        )
 
 
 # ---------------------------------------------------------------------------

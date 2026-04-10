@@ -97,6 +97,7 @@ async def run_generation(message_or_query, tg_id: int):
 
     prompt = await make_final_prompt(
         bike_file_id=user.bike_file_id,
+        location_id=user.location_id,
         helmet_file_id=user.helmet_file_id,
         jacket_file_id=user.jacket_file_id,
         suit_file_id=user.suit_file_id,
@@ -104,7 +105,7 @@ async def run_generation(message_or_query, tg_id: int):
         boot_file_id=user.boot_file_id,
     )
 
-    # TODO: убрать после тестов (промпт + пути)
+    # # TODO: убрать после тестов (промпт + пути)
     # await target.answer(f"<code>{prompt}</code>", parse_mode="HTML")
     # paths = get_paths(user)
     # joined = " ".join(f'"{p}"' for p in paths)

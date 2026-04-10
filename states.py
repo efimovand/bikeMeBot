@@ -46,3 +46,7 @@ class BootStates(StatesGroup):
     choosing_brand = State()
     choosing_model = State()
     choosing_color = State()
+
+
+class LocationStates(StatesGroup):
+    choosing_location = State()
