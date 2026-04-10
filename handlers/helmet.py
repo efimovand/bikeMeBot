@@ -9,7 +9,7 @@ from keyboards import (
     MenuCallback, brands_keyboard, helmet_colors_keyboard,
     helmet_models_keyboard, main_menu_keyboard,
 )
-from states import HelmetStates, PhotoStates
+from states import HelmetStates
 from utils import config_text
 from database import photoset_is_complete
 
@@ -104,15 +104,8 @@ async def on_helmet_color(query: CallbackQuery, callback_data: HelmetColorCallba
     onboarding = data.get("onboarding", False)
 
     if onboarding:
-        await state.set_state(PhotoStates.waiting_front)
-        await query.message.edit_text(
-            f"✅ Мотоцикл выбран: <b>{user.bike_file.bike.brand} {user.bike_file.bike.model} / {user.bike_file.color.name}</b>\n"
-            f"✅ Шлем выбран: <b>{helmet_file.helmet.brand} {helmet_file.helmet.model} / {helmet_file.color.name}</b>\n\n"
-            "📸 <b>Шаг 1 из 3 — Фото анфас</b>\n\n"
-            "Сфотографируйся прямо, смотри в камеру, лицо и плечи должны быть хорошо видны.\n\n"
-            "Отправь фото 👇",
-            parse_mode="HTML",
-        )
+        from handlers.start import show_onboarding_equip_screen
+        await show_onboarding_equip_screen(query, state)
     else:
         await state.clear()
         await query.message.edit_text(

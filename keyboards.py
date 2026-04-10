@@ -220,19 +220,32 @@ def locations_keyboard(locations: list) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def after_bike_onboarding_keyboard() -> InlineKeyboardMarkup:
+def after_bike_onboarding_keyboard(
+    has_helmet: bool = False,
+    has_jacket: bool = False,
+    has_glove: bool = False,
+    has_boot: bool = False,
+) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(
-        text="🪖 Добавить шлем",
-        callback_data=OnboardingContinueCallback(action="helmet")
+        text="🪖 Изменить шлем" if has_helmet else "🪖 Добавить шлем",
+        callback_data=OnboardingContinueCallback(action="helmet"),
     )
     builder.button(
-        text="🧥 Добавить куртку",
-        callback_data=OnboardingContinueCallback(action="jacket")
+        text="🧥 Изменить куртку" if has_jacket else "🧥 Добавить куртку",
+        callback_data=OnboardingContinueCallback(action="jacket"),
     )
     builder.button(
-        text="➡️ Продолжить",
-        callback_data=OnboardingContinueCallback(action="photos")
+        text="🧤 Изменить перчатки" if has_glove else "🧤 Добавить перчатки",
+        callback_data=OnboardingContinueCallback(action="glove"),
+    )
+    builder.button(
+        text="🥾 Изменить ботинки" if has_boot else "🥾 Добавить ботинки",
+        callback_data=OnboardingContinueCallback(action="boot"),
+    )
+    builder.button(
+        text="📷 Продолжить к фото",
+        callback_data=OnboardingContinueCallback(action="photos"),
     )
     builder.adjust(1)
     return builder.as_markup()

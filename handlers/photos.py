@@ -47,12 +47,13 @@ async def _delete_chain(bot: Bot, chat_id: int, msg_ids: list[int]) -> None:
 # Вход в загрузку фото (из главного меню)
 # ---------------------------------------------------------------------------
 
-@router.callback_query(MenuCallback.filter(F.action == "photos"))
-async def on_photos_menu(query: CallbackQuery, state: FSMContext):
-    await query.answer()
+async def start_photo_upload(query: CallbackQuery, state: FSMContext) -> None:
+    """Универсальный старт загрузки фото: удаляет текущее сообщение, шлёт текст + пример."""
     await state.set_state(PhotoStates.waiting_front)
-
-    await query.message.delete()
+    try:
+        await query.message.delete()
+    except Exception:
+        pass
 
     text_msg = await query.message.answer(
         "📸 <b>Шаг 1 из 3 — Фото анфас</b>\n\n"
@@ -65,6 +66,12 @@ async def on_photos_menu(query: CallbackQuery, state: FSMContext):
         caption="Пример фото",
     )
     await state.update_data(chain_msg_ids=[text_msg.message_id, example_msg.message_id])
+
+
+@router.callback_query(MenuCallback.filter(F.action == "photos"))
+async def on_photos_menu(query: CallbackQuery, state: FSMContext):
+    await query.answer()
+    await start_photo_upload(query, state)
 
 
 # ---------------------------------------------------------------------------

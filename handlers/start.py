@@ -13,9 +13,9 @@ from keyboards import (
     PolicyCallback,
     brands_keyboard,
     main_menu_keyboard,
-    policy_keyboard,
+    policy_keyboard, after_bike_onboarding_keyboard, GloveBrandCallback, BootBrandCallback,
 )
-from states import BikeStates, HelmetStates, JacketStates, OnboardingStates, PhotoStates
+from states import BikeStates, HelmetStates, JacketStates, OnboardingStates, GloveStates, BootStates
 from utils import config_text, _config_msg_ids
 
 
@@ -123,14 +123,60 @@ async def policy_agreed(query: CallbackQuery, state: FSMContext):
     )
 
 
+async def show_onboarding_equip_screen(query: CallbackQuery, state: FSMContext) -> None:
+    """Экран выбора экипировки во время онбординга."""
+    user = await db.get_user_by_tg_id(query.from_user.id)
+    await state.set_state(OnboardingStates.after_bike)
+    await state.update_data(onboarding=True)
+
+    lines = []
+    if user.bike_file:
+        lines.append(
+            f"✅ Мотоцикл: <b>{user.bike_file.bike.brand} "
+            f"{user.bike_file.bike.model} / {user.bike_file.color.name}</b>"
+        )
+    if user.helmet_file:
+        lines.append(
+            f"✅ Шлем: <b>{user.helmet_file.helmet.brand} "
+            f"{user.helmet_file.helmet.model} / {user.helmet_file.color.name}</b>"
+        )
+    if user.jacket_file:
+        lines.append(
+            f"✅ Куртка: <b>{user.jacket_file.jacket.brand} "
+            f"{user.jacket_file.jacket.model} / {user.jacket_file.color.name}</b>"
+        )
+    if user.glove_file:
+        lines.append(
+            f"✅ Перчатки: <b>{user.glove_file.glove.brand} "
+            f"{user.glove_file.glove.model} / {user.glove_file.color.name}</b>"
+        )
+    if user.boot_file:
+        lines.append(
+            f"✅ Ботинки: <b>{user.boot_file.boot.brand} "
+            f"{user.boot_file.boot.model} / {user.boot_file.color.name}</b>"
+        )
+
+    status = "\n".join(lines)
+    text = f"{status}\n\n🏁 Хочешь добавить экипировку? Или сразу к фото 👇"
+
+    await query.message.edit_text(
+        text,
+        reply_markup=after_bike_onboarding_keyboard(
+            has_helmet=user.helmet_file is not None,
+            has_jacket=user.jacket_file is not None,
+            has_glove=user.glove_file is not None,
+            has_boot=user.boot_file is not None,
+        ),
+        parse_mode="HTML",
+    )
+
+
 @router.callback_query(OnboardingContinueCallback.filter(F.action == "helmet"), OnboardingStates.after_bike)
 async def onboarding_add_helmet(query: CallbackQuery, state: FSMContext):
     await query.answer()
-
     brands = await db.get_helmet_brands()
     await state.update_data(onboarding=True)
     await state.set_state(HelmetStates.choosing_brand)
-
     await query.message.edit_text(
         "🪖 <b>Выберите бренд шлема:</b>",
         reply_markup=brands_keyboard(brands, HelmetBrandCallback),
@@ -141,14 +187,38 @@ async def onboarding_add_helmet(query: CallbackQuery, state: FSMContext):
 @router.callback_query(OnboardingContinueCallback.filter(F.action == "jacket"), OnboardingStates.after_bike)
 async def onboarding_add_jacket(query: CallbackQuery, state: FSMContext):
     await query.answer()
-
     brands = await db.get_jacket_brands()
     await state.update_data(onboarding=True)
     await state.set_state(JacketStates.choosing_brand)
-
     await query.message.edit_text(
         "🧥 <b>Выберите бренд куртки:</b>",
         reply_markup=brands_keyboard(brands, JacketBrandCallback),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(OnboardingContinueCallback.filter(F.action == "glove"), OnboardingStates.after_bike)
+async def onboarding_add_glove(query: CallbackQuery, state: FSMContext):
+    await query.answer()
+    brands = await db.get_glove_brands()
+    await state.update_data(onboarding=True)
+    await state.set_state(GloveStates.choosing_brand)
+    await query.message.edit_text(
+        "🧤 <b>Выберите бренд перчаток:</b>",
+        reply_markup=brands_keyboard(brands, GloveBrandCallback),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(OnboardingContinueCallback.filter(F.action == "boot"), OnboardingStates.after_bike)
+async def onboarding_add_boot(query: CallbackQuery, state: FSMContext):
+    await query.answer()
+    brands = await db.get_boot_brands()
+    await state.update_data(onboarding=True)
+    await state.set_state(BootStates.choosing_brand)
+    await query.message.edit_text(
+        "🥾 <b>Выберите бренд ботинок:</b>",
+        reply_markup=brands_keyboard(brands, BootBrandCallback),
         parse_mode="HTML",
     )
 
@@ -157,11 +227,5 @@ async def onboarding_add_jacket(query: CallbackQuery, state: FSMContext):
 async def onboarding_go_photos(query: CallbackQuery, state: FSMContext):
     await query.answer()
     await state.update_data(onboarding=True)
-    await state.set_state(PhotoStates.waiting_front)
-
-    await query.message.edit_text(
-        "📸 <b>Шаг 1 из 3 — Фото анфас</b>\n\n"
-        "Сфотографируйся прямо, смотри в камеру, лицо и плечи должны быть хорошо видны.\n\n"
-        "Отправь фото 👇",
-        parse_mode="HTML",
-    )
+    from handlers.photos import start_photo_upload
+    await start_photo_upload(query, state)

@@ -9,7 +9,7 @@ from keyboards import (
     MenuCallback, brands_keyboard, boot_colors_keyboard,
     boot_models_keyboard, main_menu_keyboard,
 )
-from states import BootStates, PhotoStates
+from states import BootStates
 from utils import config_text
 from database import photoset_is_complete
 
@@ -103,14 +103,8 @@ async def on_boot_color(query: CallbackQuery, callback_data: BootColorCallback, 
     onboarding = data.get("onboarding", False)
 
     if onboarding:
-        await state.set_state(PhotoStates.waiting_front)
-        await query.message.edit_text(
-            f"✅ Ботинки выбраны: <b>{boot_file.boot.brand} {boot_file.boot.model} / {boot_file.color.name}</b>\n\n"
-            "📸 <b>Шаг 1 из 3 — Фото анфас</b>\n\n"
-            "Сфотографируйся прямо, смотри в камеру, лицо и плечи должны быть хорошо видны.\n\n"
-            "Отправь фото 👇",
-            parse_mode="HTML",
-        )
+        from handlers.start import show_onboarding_equip_screen
+        await show_onboarding_equip_screen(query, state)
     else:
         await state.clear()
         await query.message.edit_text(

@@ -108,14 +108,8 @@ async def on_jacket_color(query: CallbackQuery, callback_data: JacketColorCallba
     onboarding = data.get("onboarding", False)
 
     if onboarding:
-        await state.set_state(PhotoStates.waiting_front)
-        await query.message.edit_text(
-            f"✅ Куртка выбрана: <b>{jacket_file.jacket.brand} {jacket_file.jacket.model} / {jacket_file.color.name}</b>\n\n"
-            "📸 <b>Шаг 1 из 3 — Фото анфас</b>\n\n"
-            "Сфотографируйся прямо, смотри в камеру, лицо и плечи должны быть хорошо видны.\n\n"
-            "Отправь фото 👇",
-            parse_mode="HTML",
-        )
+        from handlers.start import show_onboarding_equip_screen
+        await show_onboarding_equip_screen(query, state)
     else:
         await state.clear()
         await query.message.edit_text(
