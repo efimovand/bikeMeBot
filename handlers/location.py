@@ -18,7 +18,7 @@ async def on_location_menu(query: CallbackQuery, state: FSMContext):
 
     await state.set_state(LocationStates.choosing_location)
     await query.message.edit_text(
-        "<i>Локация по умолчанию соответствует стилю выбранного мотоцикла.\n\n</i>"
+        "🏍 <i>Локация по умолчанию соответствует стилю выбранного мотоцикла.\n\n</i>"
         "📍 <b>Выберите локацию:</b>",
         reply_markup=locations_keyboard(locations),
         parse_mode="HTML",

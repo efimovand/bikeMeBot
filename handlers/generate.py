@@ -20,6 +20,8 @@ ESTIMATED_SECONDS = 80
 LOADER_INTERVAL = 6
 BAR_LENGTH = 10
 
+_active_generations: set[int] = set()
+
 
 # TODO: убрать после тестов
 def get_paths(user) -> list[str]:
@@ -82,10 +84,15 @@ async def _run_loader(message, stop_event: asyncio.Event):
 
 
 async def run_generation(message_or_query, tg_id: int):
+    if tg_id in _active_generations:
+        if not isinstance(message_or_query, Message):
+            await message_or_query.answer("⏳ Генерация уже выполняется.", show_alert=True)
+        return
+
+    _active_generations.add(tg_id)
     if isinstance(message_or_query, Message):
         target = message_or_query
     else:
-        await message_or_query.answer()
         try:
             await message_or_query.message.delete()
         except Exception:
@@ -195,6 +202,7 @@ async def run_generation(message_or_query, tg_id: int):
 
 @router.callback_query(MenuCallback.filter(F.action == "generate"))
 async def on_generate(query: CallbackQuery, state: FSMContext):
+    await query.answer()
     await run_generation(query, query.from_user.id)
 
 

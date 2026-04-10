@@ -24,7 +24,7 @@ async def on_jacket_menu(query: CallbackQuery, state: FSMContext):
 
     warning = ""
     if user.suit_file_id is not None:
-        warning = "<i>Куртка заменит выбранный комбинезон.</i>\n\n"
+        warning = "❗ <i>Куртка заменит выбранный комбинезон.</i>\n\n"
 
     await state.set_state(JacketStates.choosing_brand)
     await query.message.edit_text(
