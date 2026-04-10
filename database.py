@@ -128,8 +128,7 @@ async def update_user_helmet_file(tg_id: int, helmet_file_id: int) -> None:
         )
 
 
-async def increment_spent_stars(tg_id: int, amount: int = 1) -> None:
-    """Увеличивает счётчик потраченных звёзд (для истории)."""
+async def add_spent_stars(tg_id: int, amount: int) -> None:
     async with get_session() as session:
         await session.execute(
             update(User)
@@ -153,18 +152,11 @@ async def add_balance(tg_id: int, amount: int) -> int:
 
 
 async def decrement_balance(tg_id: int) -> int:
-    """
-    Уменьшает баланс на 1 и одновременно увеличивает spent_stars на 1.
-    Возвращает новый баланс. Не уходит в минус (минимум 0).
-    """
     async with get_session() as session:
         await session.execute(
             update(User)
             .where(User.tg_id == tg_id)
-            .values(
-                balance=User.balance - 1,
-                spent_stars=User.spent_stars + 1,
-            )
+            .values(balance=User.balance - 1)
         )
         result = await session.execute(
             select(User.balance).where(User.tg_id == tg_id)

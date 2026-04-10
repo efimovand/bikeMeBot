@@ -100,11 +100,12 @@ async def run_generation(message_or_query, tg_id: int):
 
     user = await db.get_user_by_tg_id(tg_id)
     if user.balance <= 0:
+        from handlers.payment import show_topup_screen
         if isinstance(message_or_query, Message):
-            await _show_topup_stub(message_or_query, tg_id)
+            await show_topup_screen(message_or_query)
         else:
             await message_or_query.answer()
-            await _show_topup_stub(message_or_query.message, tg_id)
+            await show_topup_screen(message_or_query)
         return
 
     _active_generations.add(tg_id)
@@ -141,6 +142,7 @@ async def run_generation(message_or_query, tg_id: int):
     #     for i, chunk in enumerate(chunks):
     #         kb = generate_again_keyboard() if i == len(chunks) - 1 else None
     #         await target.answer(f"<code>{' '.join(chunk)}</code>", parse_mode="HTML", reply_markup=kb)
+    # await db.decrement_balance(tg_id)
 
     waiting_msg = await target.answer(
         "⏳ <b>Генерация началась!</b>\n\n"
@@ -190,7 +192,6 @@ async def run_generation(message_or_query, tg_id: int):
                 loader_task.cancel()
                 await db.update_generation_status(generation.id, "success")
 
-                # Списываем 1 генерацию с баланса (внутри также +1 к spent_stars)
                 await db.decrement_balance(tg_id)
 
                 await waiting_msg.delete()
@@ -204,7 +205,6 @@ async def run_generation(message_or_query, tg_id: int):
             except InsufficientCreditsError:
                 await db.update_generation_status(generation.id, "failed")
                 await db.deactivate_account(account.id)
-                # продолжаем цикл — пробуем следующий аккаунт
 
             except ContentPolicyError:
                 stop_event.set()
@@ -232,7 +232,8 @@ async def on_generate(query: CallbackQuery, state: FSMContext):
 @router.callback_query(MenuCallback.filter(F.action == "topup"))
 async def on_topup(query: CallbackQuery, state: FSMContext):
     await query.answer()
-    await _show_topup_stub(query.message, query.from_user.id)
+    from handlers.payment import show_topup_screen
+    await show_topup_screen(query)
 
 
 @router.callback_query(MenuCallback.filter(F.action == "main_menu"))

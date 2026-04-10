@@ -4,8 +4,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.fsm.storage.memory import MemoryStorage
 from config import settings
-from handlers import bike, helmet, jacket, suit, glove, boot, photos, start, generate, location
-
+from handlers import bike, helmet, jacket, suit, glove, boot, photos, start, generate, location, payment
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,6 +27,7 @@ async def main():
     dp.include_router(boot.router)
     dp.include_router(photos.router)
     dp.include_router(generate.router)
+    dp.include_router(payment.router)
 
     logging.info("Bot started")
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
