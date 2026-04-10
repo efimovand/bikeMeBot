@@ -306,8 +306,8 @@ class User(Base):
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     city: Mapped[str | None] = mapped_column(String(100), nullable=True)
     spent_stars: Mapped[int] = mapped_column(Integer, default=0)
+    balance: Mapped[int] = mapped_column(Integer, default=0)
 
-    # Текущий конфигуратор пользователя
     bike_file_id: Mapped[int | None] = mapped_column(ForeignKey("bike_file.id"), nullable=True)
     helmet_file_id: Mapped[int | None] = mapped_column(ForeignKey("helmet_file.id"), nullable=True)
     jacket_file_id: Mapped[int | None] = mapped_column(ForeignKey("jacket_file.id"), nullable=True)
