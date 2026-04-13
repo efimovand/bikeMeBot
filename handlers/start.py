@@ -1,10 +1,10 @@
 from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, FSInputFile, InputMediaPhoto
 
 import database as db
-from config import load_invited_users
+from config import load_invited_users, settings
 from keyboards import (
     BikeBrandCallback,
     HelmetBrandCallback,
@@ -15,11 +15,13 @@ from keyboards import (
     main_menu_keyboard,
     policy_keyboard, after_bike_onboarding_keyboard, GloveBrandCallback, BootBrandCallback,
 )
+from pathlib import Path
 from states import BikeStates, HelmetStates, JacketStates, OnboardingStates, GloveStates, BootStates
 from utils import config_text, _config_msg_ids
 
 
 router = Router()
+EXAMPLES_RESULTS_DIR = Path(settings.media_dir) / "examples" / "results"
 
 INVITED_BONUS = 50
 _bonus_pending: set[int] = set()
@@ -105,8 +107,16 @@ async def cmd_start(message: Message, state: FSMContext):
 @router.callback_query(PolicyCallback.filter(F.action == "agree"), OnboardingStates.waiting_policy)
 async def policy_agreed(query: CallbackQuery, state: FSMContext):
     await query.answer()
-
     await query.message.edit_reply_markup(reply_markup=None)
+
+    media_group = [
+        InputMediaPhoto(
+            media=FSInputFile(EXAMPLES_RESULTS_DIR / f"{i}.jpg"),
+            caption="✨ <b>Примеры генераций</b>" if i == 1 else None,
+        )
+        for i in range(1, 10)
+    ]
+    await query.message.answer_media_group(media=media_group)
 
     brands = await db.get_bike_brands()
     await state.update_data(onboarding=True)
