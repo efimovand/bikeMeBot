@@ -114,7 +114,7 @@ motome/
 ### 1. Клонирование и окружение
 
 ```bash
-git clone https://github.com/your-org/motome.git
+git clone https://github.com/efimovand/bikeMeBot.git
 cd motome
 
 python -m venv .venv
@@ -273,6 +273,6 @@ f4fa1541  modified collage table (model_id)
 
 <div align="center">
 
-Сделано с ❤️ и ☕ &nbsp;·&nbsp; [Telegram](https://t.me/your_bot)
+Сделано с ❤️ и ☕ &nbsp;·&nbsp; [Telegram](https://t.me/bikeMeBot)
 
 </div>
