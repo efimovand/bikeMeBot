@@ -113,6 +113,7 @@ async def policy_agreed(query: CallbackQuery, state: FSMContext):
         InputMediaPhoto(
             media=FSInputFile(EXAMPLES_RESULTS_DIR / f"{i}.jpg"),
             caption="✨ <b>Примеры генераций</b>" if i == 1 else None,
+            parse_mode="HTML" if i == 1 else None,
         )
         for i in range(1, 10)
     ]
