@@ -6,3 +6,4 @@ asyncpg~=0.31.0
 PyAutoGUI~=0.9.54
 PyGetWindow~=0.0.9
 pyperclip~=1.11.0
+aiohttp-socks~=0.11.0

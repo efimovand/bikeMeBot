@@ -82,16 +82,6 @@ async def _run_loader(message, stop_event: asyncio.Event):
             break
 
 
-async def _show_topup_stub(target, tg_id: int) -> None:
-    """Заглушка для экрана оплаты (пока не реализована)."""
-    await target.answer(
-        "⭐️ <b>Пополнение баланса</b>\n\n"
-        "У вас закончились генерации. Чтобы продолжить, пополните баланс.\n\n"
-        "<i>Скоро здесь появится возможность оплаты — следите за обновлениями!</i>",
-        parse_mode="HTML",
-    )
-
-
 async def run_generation(message_or_query, tg_id: int):
     if tg_id in _active_generations:
         if not isinstance(message_or_query, Message):
@@ -131,96 +121,107 @@ async def run_generation(message_or_query, tg_id: int):
         boot_file_id=user.boot_file_id,
     )
 
-    # # TODO: убрать после тестов (промпт + пути)
-    # await target.answer(f"<code>{prompt}</code>", parse_mode="HTML")
-    # paths = get_paths(user)
-    # joined = " ".join(f'"{p}"' for p in paths)
-    # if len(joined) <= 259:
-    #     await target.answer(f"<code>{joined}</code>", parse_mode="HTML", reply_markup=generate_again_keyboard())
-    # else:
-    #     chunks = split_into_chunks(paths)
-    #     for i, chunk in enumerate(chunks):
-    #         kb = generate_again_keyboard() if i == len(chunks) - 1 else None
-    #         await target.answer(f"<code>{' '.join(chunk)}</code>", parse_mode="HTML", reply_markup=kb)
-    # await db.decrement_balance(tg_id)
-
-    waiting_msg = await target.answer(
-        "⏳ <b>Генерация началась!</b>\n\n"
-        f"[{'░' * BAR_LENGTH}] 0%\n"
-        "<i>Загружаем фото...</i>",
-        parse_mode="HTML",
-    )
-
-    stop_event = asyncio.Event()
-    loader_task = asyncio.create_task(_run_loader(waiting_msg, stop_event))
-
-    try:
-        while True:
-            account = await db.get_active_account()
-            if account is None:
-                stop_event.set()
-                loader_task.cancel()
-                await waiting_msg.edit_text("❌ Нет доступных аккаунтов для генерации.")
-                return
-
-            generation = await db.create_generation(
-                user_id=user.id,
-                account_id=account.id,
-                bike_file=user.bike_file,
-                helmet_file_id=user.helmet_file_id,
-                jacket_file_id=user.jacket_file_id,
-                suit_file_id=user.suit_file_id,
-                glove_file_id=user.glove_file_id,
-                boot_file_id=user.boot_file_id,
-            )
-
-            try:
-                result_path = await generate_for_user(
-                    generation_id=generation.id,
-                    tg_id=tg_id,
-                    api_key=account.token,
-                    bike_file_path=BASE / user.bike_file.file,
-                    helmet_file_path=BASE / user.helmet_file.file if user.helmet_file else None,
-                    jacket_file_path=BASE / user.jacket_file.file if user.jacket_file else None,
-                    suit_file_path=BASE / user.suit_file.file if user.suit_file else None,
-                    glove_file_path=BASE / user.glove_file.file if user.glove_file else None,
-                    boot_file_path=BASE / user.boot_file.file if user.boot_file else None,
-                    prompt=prompt,
-                )
-
-                stop_event.set()
-                loader_task.cancel()
-                await db.update_generation_status(generation.id, "success")
-
-                await db.decrement_balance(tg_id)
-
-                await waiting_msg.delete()
-                await target.answer_photo(
-                    FSInputFile(result_path),
-                    caption="🏍 Готово!",
-                    reply_markup=generate_again_keyboard(),
-                )
-                return
-
-            except InsufficientCreditsError:
-                await db.update_generation_status(generation.id, "failed")
-                await db.deactivate_account(account.id)
-
-            except ContentPolicyError:
-                stop_event.set()
-                loader_task.cancel()
-                await db.update_generation_status(generation.id, "failed")
-                await waiting_msg.edit_text("❌ Изображение не прошло проверку контента.")
-                return
-
-            except Exception as e:
-                stop_event.set()
-                loader_task.cancel()
-                await db.update_generation_status(generation.id, "failed")
-                await waiting_msg.edit_text(f"❌ Ошибка генерации: {e}")
-                raise
-    finally:
+    # TODO: убрать после тестов (промпт + пути)
+    if tg_id == 370377802:
+        prompt += '\n\nPhoto format: 1:1 square'
+        if len(prompt) <= 4080:
+            await target.answer(f"<code>{prompt}</code>", parse_mode="HTML")
+        else:
+            half = len(prompt) // 2
+            part_1 = prompt[:half]
+            part_2 = prompt[half:]
+            await target.answer(f"<code>{part_1}</code>", parse_mode="HTML")
+            await target.answer(f"<code>{part_2}</code>", parse_mode="HTML")
+        paths = get_paths(user)
+        joined = " ".join(f'"{p}"' for p in paths)
+        if len(joined) <= 259:
+            await target.answer(f"<code>{joined}</code>", parse_mode="HTML", reply_markup=generate_again_keyboard())
+        else:
+            chunks = split_into_chunks(paths)
+            for i, chunk in enumerate(chunks):
+                kb = generate_again_keyboard() if i == len(chunks) - 1 else None
+                await target.answer(f"<code>{' '.join(chunk)}</code>", parse_mode="HTML", reply_markup=kb)
+        await db.decrement_balance(tg_id)
         _active_generations.discard(tg_id)
+
+    else:
+        waiting_msg = await target.answer(
+            "⏳ <b>Генерация началась!</b>\n\n"
+            f"[{'░' * BAR_LENGTH}] 0%\n"
+            "<i>Загружаем фото...</i>",
+            parse_mode="HTML",
+        )
+
+        stop_event = asyncio.Event()
+        loader_task = asyncio.create_task(_run_loader(waiting_msg, stop_event))
+
+        try:
+            while True:
+                account = await db.get_active_account()
+                if account is None:
+                    stop_event.set()
+                    loader_task.cancel()
+                    await waiting_msg.edit_text("❌ Нет доступных аккаунтов для генерации.")
+                    return
+
+                generation = await db.create_generation(
+                    user_id=user.id,
+                    account_id=account.id,
+                    bike_file=user.bike_file,
+                    helmet_file_id=user.helmet_file_id,
+                    jacket_file_id=user.jacket_file_id,
+                    suit_file_id=user.suit_file_id,
+                    glove_file_id=user.glove_file_id,
+                    boot_file_id=user.boot_file_id,
+                )
+
+                try:
+                    result_path = await generate_for_user(
+                        generation_id=generation.id,
+                        tg_id=tg_id,
+                        api_key=account.token,
+                        bike_file_path=BASE / user.bike_file.file,
+                        helmet_file_path=BASE / user.helmet_file.file if user.helmet_file else None,
+                        jacket_file_path=BASE / user.jacket_file.file if user.jacket_file else None,
+                        suit_file_path=BASE / user.suit_file.file if user.suit_file else None,
+                        glove_file_path=BASE / user.glove_file.file if user.glove_file else None,
+                        boot_file_path=BASE / user.boot_file.file if user.boot_file else None,
+                        prompt=prompt,
+                    )
+
+                    stop_event.set()
+                    loader_task.cancel()
+                    await db.update_generation_status(generation.id, "success")
+
+                    await db.decrement_balance(tg_id)
+
+                    await waiting_msg.delete()
+                    await target.answer_photo(
+                        FSInputFile(result_path),
+                        caption="🏍 Готово!",
+                        reply_markup=generate_again_keyboard(),
+                    )
+                    return
+
+                except InsufficientCreditsError:
+                    await db.update_generation_status(generation.id, "failed")
+                    await db.deactivate_account(account.id)
+
+                except ContentPolicyError:
+                    stop_event.set()
+                    loader_task.cancel()
+                    await db.update_generation_status(generation.id, "failed")
+                    await waiting_msg.edit_text("❌ Изображение не прошло проверку контента.")
+                    return
+
+                except Exception as e:
+                    stop_event.set()
+                    loader_task.cancel()
+                    await db.update_generation_status(generation.id, "failed")
+                    await waiting_msg.edit_text(f"❌ Ошибка генерации: {e}")
+                    raise
+        finally:
+            _active_generations.discard(tg_id)
 
 
 @router.callback_query(MenuCallback.filter(F.action == "generate"))

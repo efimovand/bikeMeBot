@@ -73,10 +73,6 @@ async def send_main_menu(message_or_query, user, state: FSMContext):
 
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
-    if message.from_user.id != 370377802:  # TODO: Дебаг
-        await message.answer('Вам недоступен функционал BikeMeBot. Обратитесь к @efimov_and')
-        return
-
     user, created = await db.get_or_create_user(
         tg_id=message.from_user.id,
         name=message.from_user.full_name,

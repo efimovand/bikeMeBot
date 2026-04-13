@@ -175,7 +175,6 @@ def main_menu_keyboard(
     else:
         builder.button(text="🥾 Выбрать ботинки", callback_data=MenuCallback(action="boot"))
 
-    # Пополнить баланс — всегда видна, над кнопкой фото
     builder.button(
         text="⭐️ Пополнить баланс",
         callback_data=MenuCallback(action="topup")
