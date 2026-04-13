@@ -162,21 +162,21 @@ python bot.py
 location          bike ──── bike_color
                    │            │
                    └──── bike_file ──────────────────────┐
-                                                          │
+                                                         │
 helmet ── helmet_color ── helmet_file ──────────────┐    │
 jacket ── jacket_color ── jacket_file ──────────┐   │    │
 suit   ── suit_color   ── suit_file   ──────┐   │   │    │
 glove  ── glove_color  ── glove_file  ──┐   │   │   │    │
 boot   ── boot_color   ── boot_file   ─┐│   │   │   │    │
-                                        ││   │   │   │    │
-user ◄──────────────────────────────────┘┘   │   │   │    │
- │   bike_file_id, helmet_file_id,           │   │   │    │
- │   jacket_file_id, suit_file_id,           │   │   │    │
- │   glove_file_id, boot_file_id,            │   │   │    │
- │   location_id, balance                    │   │   │    │
- │                                           │   │   │    │
- ├── user_photoset                           │   │   │    │
- │                                           │   │   │    │
+                                       ││   │   │   │    │
+user ◄─────────────────────────────────┘┘   │   │   │    │
+ │   bike_file_id, helmet_file_id,          │   │   │    │
+ │   jacket_file_id, suit_file_id,          │   │   │    │
+ │   glove_file_id, boot_file_id,           │   │   │    │
+ │   location_id, balance                   │   │   │    │
+ │                                          │   │   │    │
+ ├── user_photoset                          │   │   │    │
+ │                                          │   │   │    │
  └── generation ◄───────────────────────────┘───┘───┘────┘
       (bike/helmet/jacket/suit/glove/boot_file_id,
        account_id, status, user_id)
