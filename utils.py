@@ -7,6 +7,7 @@ from database import photoset_is_complete
 BASE_DIR = Path(settings.media_dir)
 
 _config_msg_ids: dict[int, int] = {}
+_photos_just_updated: set[int] = set()
 
 
 def get_media_path(relative_path: str) -> Path:
@@ -56,11 +57,14 @@ def config_text(user: User) -> str:
 
     balance_line = f"⭐️ <b>Баланс:</b> {user.balance}" if user.balance > 0 else ""
 
-    photos_line = (
-        "📷 <b>Ваши фото:</b> ☑️"
-        if photoset_is_complete(user.photoset)
-        else "📷 <b>Ваши фото:</b> <i>не загружены</i>"
-    )
+    if photoset_is_complete(user.photoset):
+        if user.tg_id in _photos_just_updated:
+            _photos_just_updated.discard(user.tg_id)
+            photos_line = "📷 <b>Ваши фото:</b> <i>обновлены</i> ☑️"
+        else:
+            photos_line = "📷 <b>Ваши фото:</b> ☑️"
+    else:
+        photos_line = "📷 <b>Ваши фото:</b> <i>не загружены</i>"
 
     return (
         "⚙️ <b>Текущая конфигурация:</b>\n\n"

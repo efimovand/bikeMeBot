@@ -6,7 +6,7 @@ import database as db
 from config import settings
 from keyboards import MenuCallback, main_menu_keyboard
 from states import PhotoStates
-from utils import config_text
+from utils import config_text, _photos_just_updated
 
 
 router = Router()
@@ -150,6 +150,7 @@ async def got_body_photo(message: Message, state: FSMContext, bot: Bot):
         await run_generation(message, message.from_user.id)
     else:
         user = await db.get_user_by_tg_id(message.from_user.id)
+        _photos_just_updated.add(message.from_user.id)
         await message.answer(
             "✅ Все три фото загружены!\n\n" + config_text(user),
             reply_markup=main_menu_keyboard(
