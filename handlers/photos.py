@@ -152,7 +152,7 @@ async def got_body_photo(message: Message, state: FSMContext, bot: Bot):
         user = await db.get_user_by_tg_id(message.from_user.id)
         _photos_just_updated.add(message.from_user.id)
         await message.answer(
-            "✅ Все три фото загружены!\n\n" + config_text(user),
+            config_text(user),
             reply_markup=main_menu_keyboard(
                 has_bike=user.bike_file_id is not None,
                 has_helmet=user.helmet_file_id is not None,
