@@ -280,7 +280,7 @@ class BootFile(Base):
 
 
 # ---------------------------------------------------------------------------
-# Account (токены KIE AI)
+# Account
 # ---------------------------------------------------------------------------
 
 class Account(Base):
@@ -304,6 +304,7 @@ class User(Base):
     tg_id: Mapped[int] = mapped_column(BigInteger, unique=True)
     name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    language: Mapped[str] = mapped_column(String(10), default="ru", server_default="ru")
     city: Mapped[str | None] = mapped_column(String(100), nullable=True)
     balance: Mapped[int] = mapped_column(Integer, default=0)
     spent_stars: Mapped[int] = mapped_column(Integer, default=0)
@@ -351,7 +352,7 @@ class Generation(Base):
     updated_date: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
     account_id: Mapped[int] = mapped_column(ForeignKey("account.id"))
-    status: Mapped[str] = mapped_column(String(10), default="pending")  # pending / success / failed
+    status: Mapped[str] = mapped_column(String(10), default="pending")
     bike_file_id: Mapped[int] = mapped_column(ForeignKey("bike_file.id"))
     helmet_file_id: Mapped[int | None] = mapped_column(ForeignKey("helmet_file.id"), nullable=True)
     jacket_file_id: Mapped[int | None] = mapped_column(ForeignKey("jacket_file.id"), nullable=True)
@@ -377,7 +378,7 @@ class DictionaryPrompt(Base):
     __tablename__ = "dictionary_prompt"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    type: Mapped[str] = mapped_column(String(10))   # default / helmet / jacket / suit / glove / boot
+    type: Mapped[str] = mapped_column(String(10))
     text: Mapped[str] = mapped_column(Text)
 
 
