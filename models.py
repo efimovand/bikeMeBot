@@ -17,7 +17,7 @@ class Base(DeclarativeBase):
 class Location(Base):
     __tablename__ = "location"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(50))
     description: Mapped[str | None] = mapped_column(String(100), nullable=True)
     prompt: Mapped[str] = mapped_column(Text)
@@ -32,7 +32,7 @@ class Location(Base):
 class Bike(Base):
     __tablename__ = "bike"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     brand: Mapped[str] = mapped_column(String(50))
     model: Mapped[str] = mapped_column(String(50))
     location_id: Mapped[int] = mapped_column(ForeignKey("location.id"))
@@ -46,7 +46,7 @@ class Bike(Base):
 class BikeColor(Base):
     __tablename__ = "bike_color"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(50))
     bike_id: Mapped[int | None] = mapped_column(ForeignKey("bike.id"), nullable=True)
 
@@ -59,7 +59,7 @@ class BikeFile(Base):
         UniqueConstraint("bike_id", "color_id", name="uq_bike_file_bike_color"),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     bike_id: Mapped[int] = mapped_column(ForeignKey("bike.id"))
     color_id: Mapped[int] = mapped_column(ForeignKey("bike_color.id"))
     description: Mapped[str] = mapped_column(String(255))
@@ -76,7 +76,7 @@ class BikeFile(Base):
 class Helmet(Base):
     __tablename__ = "helmet"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     brand: Mapped[str] = mapped_column(String(50))
     model: Mapped[str] = mapped_column(String(50))
     prompt: Mapped[str] = mapped_column(Text)
@@ -88,7 +88,7 @@ class Helmet(Base):
 class HelmetColor(Base):
     __tablename__ = "helmet_color"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(50))
     helmet_id: Mapped[int | None] = mapped_column(ForeignKey("helmet.id"), nullable=True)
 
@@ -101,7 +101,7 @@ class HelmetFile(Base):
         UniqueConstraint("helmet_id", "color_id", name="uq_helmet_file_helmet_color"),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     helmet_id: Mapped[int] = mapped_column(ForeignKey("helmet.id"))
     color_id: Mapped[int] = mapped_column(ForeignKey("helmet_color.id"))
     description: Mapped[str] = mapped_column(String(255))
@@ -118,7 +118,7 @@ class HelmetFile(Base):
 class Jacket(Base):
     __tablename__ = "jacket"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     brand: Mapped[str] = mapped_column(String(50))
     model: Mapped[str] = mapped_column(String(50))
     prompt: Mapped[str] = mapped_column(Text)
@@ -130,7 +130,7 @@ class Jacket(Base):
 class JacketColor(Base):
     __tablename__ = "jacket_color"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(50))
     jacket_id: Mapped[int | None] = mapped_column(ForeignKey("jacket.id"), nullable=True)
 
@@ -143,7 +143,7 @@ class JacketFile(Base):
         UniqueConstraint("jacket_id", "color_id", name="uq_jacket_file_jacket_color"),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     jacket_id: Mapped[int] = mapped_column(ForeignKey("jacket.id"))
     color_id: Mapped[int] = mapped_column(ForeignKey("jacket_color.id"))
     description: Mapped[str] = mapped_column(String(255))
@@ -160,7 +160,7 @@ class JacketFile(Base):
 class Suit(Base):
     __tablename__ = "suit"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     brand: Mapped[str] = mapped_column(String(50))
     model: Mapped[str] = mapped_column(String(50))
     prompt: Mapped[str] = mapped_column(Text)
@@ -172,7 +172,7 @@ class Suit(Base):
 class SuitColor(Base):
     __tablename__ = "suit_color"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(50))
     suit_id: Mapped[int | None] = mapped_column(ForeignKey("suit.id"), nullable=True)
 
@@ -185,7 +185,7 @@ class SuitFile(Base):
         UniqueConstraint("suit_id", "color_id", name="uq_suit_file_suit_color"),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     suit_id: Mapped[int] = mapped_column(ForeignKey("suit.id"))
     color_id: Mapped[int] = mapped_column(ForeignKey("suit_color.id"))
     description: Mapped[str] = mapped_column(String(255))
@@ -202,7 +202,7 @@ class SuitFile(Base):
 class Glove(Base):
     __tablename__ = "glove"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     brand: Mapped[str] = mapped_column(String(50))
     model: Mapped[str] = mapped_column(String(50))
     prompt: Mapped[str] = mapped_column(Text)
@@ -214,7 +214,7 @@ class Glove(Base):
 class GloveColor(Base):
     __tablename__ = "glove_color"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(50))
     glove_id: Mapped[int | None] = mapped_column(ForeignKey("glove.id"), nullable=True)
 
@@ -227,7 +227,7 @@ class GloveFile(Base):
         UniqueConstraint("glove_id", "color_id", name="uq_glove_file_glove_color"),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     glove_id: Mapped[int] = mapped_column(ForeignKey("glove.id"))
     color_id: Mapped[int] = mapped_column(ForeignKey("glove_color.id"))
     description: Mapped[str] = mapped_column(String(255))
@@ -244,7 +244,7 @@ class GloveFile(Base):
 class Boot(Base):
     __tablename__ = "boot"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     brand: Mapped[str] = mapped_column(String(50))
     model: Mapped[str] = mapped_column(String(50))
     prompt: Mapped[str] = mapped_column(Text)
@@ -256,7 +256,7 @@ class Boot(Base):
 class BootColor(Base):
     __tablename__ = "boot_color"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(50))
     boot_id: Mapped[int | None] = mapped_column(ForeignKey("boot.id"), nullable=True)
 
@@ -269,7 +269,7 @@ class BootFile(Base):
         UniqueConstraint("boot_id", "color_id", name="uq_boot_file_boot_color"),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     boot_id: Mapped[int] = mapped_column(ForeignKey("boot.id"))
     color_id: Mapped[int] = mapped_column(ForeignKey("boot_color.id"))
     description: Mapped[str] = mapped_column(String(255))
@@ -286,7 +286,7 @@ class BootFile(Base):
 class Account(Base):
     __tablename__ = "account"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     token: Mapped[str] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -299,7 +299,7 @@ class Account(Base):
 class User(Base):
     __tablename__ = "user"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     created_date: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     tg_id: Mapped[int] = mapped_column(BigInteger, unique=True)
     name: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -331,7 +331,7 @@ class User(Base):
 class UserPhotoset(Base):
     __tablename__ = "user_photoset"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), unique=True)
     front_photo: Mapped[str | None] = mapped_column(Text, nullable=True)
     side_photo: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -347,7 +347,7 @@ class UserPhotoset(Base):
 class Generation(Base):
     __tablename__ = "generation"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     created_date: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_date: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
@@ -377,7 +377,7 @@ class Generation(Base):
 class DictionaryPrompt(Base):
     __tablename__ = "dictionary_prompt"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     type: Mapped[str] = mapped_column(String(10))
     text: Mapped[str] = mapped_column(Text)
 
@@ -392,7 +392,7 @@ class Collage(Base):
         UniqueConstraint("type", "brand", "model_id", name="uq_collage_type_brand_model"),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     type: Mapped[str] = mapped_column(String(20))
     brand: Mapped[str] = mapped_column(String(50))
     model_id: Mapped[int] = mapped_column(Integer, default=0)
