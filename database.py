@@ -828,14 +828,13 @@ async def upsert_color_collage(type: str, brand: str, model_id: int, file_path: 
 
 async def get_items_for_collage(item_type: str, brand: str) -> list[tuple[str, str | None]]:
     model_map = {
-        "helmet": (Helmet, HelmetFile, Helmet.model),
-        "jacket": (Jacket, JacketFile, Jacket.model),
-        "suit":   (Suit,   SuitFile,   Suit.model),
-        "glove":  (Glove,  GloveFile,  Glove.model),
-        "boot":   (Boot,   BootFile,   Boot.model),
+        "helmet": (Helmet, HelmetFile, Helmet.id),
+        "jacket": (Jacket, JacketFile, Jacket.id),
+        "suit": (Suit, SuitFile, Suit.id),
+        "glove": (Glove, GloveFile, Glove.id),
+        "boot": (Boot, BootFile, Boot.id),
     }
     Model, FileModel, order_col = model_map[item_type]
-    random_color = item_type != "helmet"
 
     async with get_session() as session:
         result = await session.execute(
@@ -848,7 +847,12 @@ async def get_items_for_collage(item_type: str, brand: str) -> list[tuple[str, s
         def pick_file(files):
             if not files:
                 return None
-            return random.choice(files).file if random_color else files[0].file
+            if item_type == "helmet":
+                for f in files:
+                    if f.color_id == 1:
+                        return f.file
+                return files[0].file
+            return random.choice(files).file
 
         return [(r.model, pick_file(r.files)) for r in rows]
 
