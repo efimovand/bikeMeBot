@@ -260,7 +260,7 @@ def brands_keyboard(brands: list[str], callback_class, cancel_entity: str = "") 
     for brand in brands:
         builder.button(text=brand, callback_data=callback_class(brand=brand))
     if cancel_entity:
-        builder.button(text="← В меню", callback_data=BackCallback(entity=cancel_entity, step="to_menu"))
+        builder.button(text="⬅️ В меню", callback_data=BackCallback(entity=cancel_entity, step="to_menu"))
     builder.adjust(2)
     return builder.as_markup()
 
