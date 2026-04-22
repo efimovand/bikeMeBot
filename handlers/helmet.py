@@ -188,6 +188,7 @@ async def on_helmet_cancel(query: CallbackQuery, state: FSMContext):
     else:
         from handlers.start import send_main_menu
         user = await db.get_user_by_tg_id(query.from_user.id)
+        await query.message.delete()
         await send_main_menu(query.message, user, state)
 
 @router.callback_query(MenuCallback.filter(F.action == "helmet_remove"))

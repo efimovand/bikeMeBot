@@ -61,6 +61,7 @@ async def on_bike_cancel(query: CallbackQuery, state: FSMContext):
     await query.answer()
     from handlers.start import send_main_menu
     user = await db.get_user_by_tg_id(query.from_user.id)
+    await query.message.delete()
     await send_main_menu(query.message, user, state)
 
 
