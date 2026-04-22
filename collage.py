@@ -11,7 +11,6 @@ BASE_DIR = Path(__file__).resolve().parent / "media"
 
 
 CARD_SIZE = 400
-COLS = 3
 GAP = 16
 PADDING = 24
 
@@ -169,24 +168,24 @@ class ItemView(NamedTuple):
 def _build_collage(items: list[ItemView], out_path: Path) -> Path:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    rows = -(-len(items) // COLS)
-    w = COLS * CARD_SIZE + (COLS - 1) * GAP + PADDING * 2
+    cols = 4 if len(items) > 9 else 3
+
+    rows = -(-len(items) // cols)
+    w = cols * CARD_SIZE + (cols - 1) * GAP + PADDING * 2
     h = rows * CARD_SIZE + (rows - 1) * GAP + PADDING * 2
 
     canvas = Image.new("RGB", (w, h), BG_COLOR)
 
     for idx, item in enumerate(items):
-        col, row = idx % COLS, idx // COLS
+        col, row = idx % cols, idx // cols
         x = PADDING + col * (CARD_SIZE + GAP)
         y = PADDING + row * (CARD_SIZE + GAP)
 
         card_img = _draw_card(item.label_top, item.label_bottom, item.photo_path)
-
         canvas.paste(card_img, (x, y), card_img)
 
     canvas.save(out_path, "JPEG", quality=95, optimize=True)
     return out_path
-
 
 # -------------------------------------------------------------------
 # PUBLIC API
