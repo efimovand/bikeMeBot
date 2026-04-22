@@ -126,7 +126,7 @@ async def policy_agreed(query: CallbackQuery, state: FSMContext):
     await query.message.answer(
         "✅ Отлично! Давай выберем твой мотоцикл.\n\n"
         "🏍 <b>Выберите бренд:</b>",
-        reply_markup=brands_keyboard(brands, BikeBrandCallback),
+        reply_markup=brands_keyboard(brands, BikeBrandCallback, cancel_entity="bike"),
         parse_mode="HTML",
     )
 
@@ -187,7 +187,7 @@ async def onboarding_add_helmet(query: CallbackQuery, state: FSMContext):
     await state.set_state(HelmetStates.choosing_brand)
     await query.message.edit_text(
         "🪖 <b>Выберите бренд шлема:</b>",
-        reply_markup=brands_keyboard(brands, HelmetBrandCallback),
+        reply_markup=brands_keyboard(brands, HelmetBrandCallback, cancel_entity="helmet"),
         parse_mode="HTML",
     )
 
@@ -200,7 +200,7 @@ async def onboarding_add_jacket(query: CallbackQuery, state: FSMContext):
     await state.set_state(JacketStates.choosing_brand)
     await query.message.edit_text(
         "🧥 <b>Выберите бренд куртки:</b>",
-        reply_markup=brands_keyboard(brands, JacketBrandCallback),
+        reply_markup=brands_keyboard(brands, JacketBrandCallback, cancel_entity="jacket"),
         parse_mode="HTML",
     )
 
@@ -213,7 +213,7 @@ async def onboarding_add_glove(query: CallbackQuery, state: FSMContext):
     await state.set_state(GloveStates.choosing_brand)
     await query.message.edit_text(
         "🧤 <b>Выберите бренд перчаток:</b>",
-        reply_markup=brands_keyboard(brands, GloveBrandCallback),
+        reply_markup=brands_keyboard(brands, GloveBrandCallback, cancel_entity="glove"),
         parse_mode="HTML",
     )
 
@@ -226,7 +226,7 @@ async def onboarding_add_boot(query: CallbackQuery, state: FSMContext):
     await state.set_state(BootStates.choosing_brand)
     await query.message.edit_text(
         "🥾 <b>Выберите бренд ботинок:</b>",
-        reply_markup=brands_keyboard(brands, BootBrandCallback),
+        reply_markup=brands_keyboard(brands, BootBrandCallback, cancel_entity="boot"),
         parse_mode="HTML",
     )
 

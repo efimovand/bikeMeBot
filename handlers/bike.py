@@ -4,6 +4,7 @@ from aiogram.types import CallbackQuery
 
 import database as db
 from keyboards import (
+    BackCallback,
     BikeBrandCallback, BikeColorCallback, BikeModelCallback,
     MenuCallback, OnboardingContinueCallback,
     after_bike_onboarding_keyboard, bike_colors_keyboard,
@@ -24,7 +25,7 @@ async def on_bike_menu(query: CallbackQuery, state: FSMContext):
     await state.set_state(BikeStates.choosing_brand)
     await query.message.edit_text(
         "🏍 <b>Выберите бренд мотоцикла:</b>",
-        reply_markup=brands_keyboard(brands, BikeBrandCallback),
+        reply_markup=brands_keyboard(brands, BikeBrandCallback, cancel_entity="bike"),
         parse_mode="HTML",
     )
 
@@ -43,6 +44,26 @@ async def on_bike_brand(query: CallbackQuery, callback_data: BikeBrandCallback, 
     )
 
 
+@router.callback_query(BackCallback.filter((F.entity == "bike") & (F.step == "to_brand")), BikeStates.choosing_model)
+async def on_bike_back_to_brand(query: CallbackQuery, state: FSMContext):
+    await query.answer()
+    brands = await db.get_bike_brands()
+
+    await state.set_state(BikeStates.choosing_brand)
+    await query.message.edit_text(
+        "🏍 <b>Выберите бренд мотоцикла:</b>",
+        reply_markup=brands_keyboard(brands, BikeBrandCallback, cancel_entity="bike"),
+        parse_mode="HTML",
+    )
+
+@router.callback_query(BackCallback.filter((F.entity == "bike") & (F.step == "to_menu")), BikeStates.choosing_brand)
+async def on_bike_cancel(query: CallbackQuery, state: FSMContext):
+    await query.answer()
+    from handlers.start import send_main_menu
+    user = await db.get_user_by_tg_id(query.from_user.id)
+    await send_main_menu(query.message, user, state)
+
+
 @router.callback_query(BikeModelCallback.filter(), BikeStates.choosing_model)
 async def on_bike_model(query: CallbackQuery, callback_data: BikeModelCallback, state: FSMContext):
     await query.answer()
@@ -53,6 +74,21 @@ async def on_bike_model(query: CallbackQuery, callback_data: BikeModelCallback, 
     await query.message.edit_text(
         "🎨 Выберите расцветку:",
         reply_markup=bike_colors_keyboard(colors, callback_data.bike_id),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(BackCallback.filter((F.entity == "bike") & (F.step == "to_model")), BikeStates.choosing_color)
+async def on_bike_back_to_model(query: CallbackQuery, state: FSMContext):
+    await query.answer()
+    data = await state.get_data()
+    brand = data.get("brand", "")
+    bikes = await db.get_bike_models(brand)
+
+    await state.set_state(BikeStates.choosing_model)
+    await query.message.edit_text(
+        f"🏍 <b>{brand}</b> — выберите модель:",
+        reply_markup=bike_models_keyboard(bikes),
         parse_mode="HTML",
     )
 

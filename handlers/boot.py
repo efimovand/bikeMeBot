@@ -5,11 +5,12 @@ from aiogram.types import CallbackQuery, FSInputFile
 import database as db
 from collage import get_or_build_brand_collage, get_or_build_color_collage
 from keyboards import (
+    BackCallback,
     BootBrandCallback, BootColorCallback, BootModelCallback,
     MenuCallback, brands_keyboard, boot_colors_keyboard,
     boot_models_keyboard, main_menu_keyboard,
 )
-from states import BootStates
+from states import BootStates, OnboardingStates
 from utils import config_text
 from database import photoset_is_complete
 
@@ -24,7 +25,7 @@ async def on_boot_menu(query: CallbackQuery, state: FSMContext):
     await state.set_state(BootStates.choosing_brand)
     await query.message.edit_text(
         "🥾 <b>Выберите бренд ботинок:</b>",
-        reply_markup=brands_keyboard(brands, BootBrandCallback),
+        reply_markup=brands_keyboard(brands, BootBrandCallback, cancel_entity="boot"),
         parse_mode="HTML",
     )
 
@@ -48,6 +49,27 @@ async def on_boot_brand(query: CallbackQuery, callback_data: BootBrandCallback, 
         parse_mode="HTML",
     )
     await state.update_data(collage_msg_id=photo_msg.message_id, menu_msg_id=text_msg.message_id)
+
+
+@router.callback_query(BackCallback.filter((F.entity == "boot") & (F.step == "to_brand")), BootStates.choosing_model)
+async def on_boot_back_to_brand(query: CallbackQuery, state: FSMContext):
+    await query.answer()
+    data = await state.get_data()
+
+    collage_msg_id = data.get("collage_msg_id")
+    if collage_msg_id:
+        try:
+            await query.bot.delete_message(query.message.chat.id, collage_msg_id)
+        except Exception:
+            pass
+
+    brands = await db.get_boot_brands()
+    await state.set_state(BootStates.choosing_brand)
+    await query.message.edit_text(
+        "🥾 <b>Выберите бренд ботинок:</b>",
+        reply_markup=brands_keyboard(brands, BootBrandCallback, cancel_entity="boot"),
+        parse_mode="HTML",
+    )
 
 
 @router.callback_query(BootModelCallback.filter(), BootStates.choosing_model)
@@ -79,6 +101,34 @@ async def on_boot_model(query: CallbackQuery, callback_data: BootModelCallback, 
     text_msg = await query.message.answer(
         "🎨 Выберите расцветку:",
         reply_markup=boot_colors_keyboard(colors, callback_data.boot_id),
+        parse_mode="HTML",
+    )
+    await state.update_data(collage_msg_id=photo_msg.message_id, menu_msg_id=text_msg.message_id)
+
+
+@router.callback_query(BackCallback.filter((F.entity == "boot") & (F.step == "to_model")), BootStates.choosing_color)
+async def on_boot_back_to_model(query: CallbackQuery, state: FSMContext):
+    await query.answer()
+    data = await state.get_data()
+    brand = data.get("brand", "")
+
+    collage_msg_id = data.get("collage_msg_id")
+    if collage_msg_id:
+        try:
+            await query.bot.delete_message(query.message.chat.id, collage_msg_id)
+        except Exception:
+            pass
+
+    boots = await db.get_boot_models(brand)
+    collage_path = await get_or_build_brand_collage("boot", brand)
+
+    await state.set_state(BootStates.choosing_model)
+    await query.message.delete()
+
+    photo_msg = await query.message.answer_photo(photo=FSInputFile(collage_path))
+    text_msg = await query.message.answer(
+        f"🥾 <b>{brand}</b> — выберите модель:",
+        reply_markup=boot_models_keyboard(boots),
         parse_mode="HTML",
     )
     await state.update_data(collage_msg_id=photo_msg.message_id, menu_msg_id=text_msg.message_id)
@@ -121,6 +171,23 @@ async def on_boot_color(query: CallbackQuery, callback_data: BootColorCallback, 
             parse_mode="HTML",
         )
 
+
+
+
+@router.callback_query(BackCallback.filter((F.entity == "boot") & (F.step == "to_menu")), BootStates.choosing_brand)
+async def on_boot_cancel(query: CallbackQuery, state: FSMContext):
+    await query.answer()
+    data = await state.get_data()
+    onboarding = data.get("onboarding", False)
+    if onboarding:
+        await state.set_state(OnboardingStates.after_bike)
+        await state.update_data(onboarding=True)
+        from handlers.start import show_onboarding_equip_screen
+        await show_onboarding_equip_screen(query, state)
+    else:
+        from handlers.start import send_main_menu
+        user = await db.get_user_by_tg_id(query.from_user.id)
+        await send_main_menu(query.message, user, state)
 
 @router.callback_query(MenuCallback.filter(F.action == "boot_remove"))
 async def on_boot_remove(query: CallbackQuery, state: FSMContext):

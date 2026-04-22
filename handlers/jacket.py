@@ -4,11 +4,12 @@ from aiogram.types import CallbackQuery, FSInputFile
 import database as db
 from collage import get_or_build_brand_collage, get_or_build_color_collage
 from keyboards import (
+    BackCallback,
     JacketBrandCallback, JacketColorCallback, JacketModelCallback,
     MenuCallback, brands_keyboard, jacket_colors_keyboard,
     jacket_models_keyboard, main_menu_keyboard,
 )
-from states import JacketStates, PhotoStates
+from states import JacketStates, OnboardingStates, PhotoStates
 from utils import config_text
 from database import photoset_is_complete
 
@@ -29,7 +30,7 @@ async def on_jacket_menu(query: CallbackQuery, state: FSMContext):
     await state.set_state(JacketStates.choosing_brand)
     await query.message.edit_text(
         f"{warning}🧥 <b>Выберите бренд куртки:</b>",
-        reply_markup=brands_keyboard(brands, JacketBrandCallback),
+        reply_markup=brands_keyboard(brands, JacketBrandCallback, cancel_entity="jacket"),
         parse_mode="HTML",
     )
 
@@ -53,6 +54,30 @@ async def on_jacket_brand(query: CallbackQuery, callback_data: JacketBrandCallba
         parse_mode="HTML",
     )
     await state.update_data(collage_msg_id=photo_msg.message_id, menu_msg_id=text_msg.message_id)
+
+
+@router.callback_query(BackCallback.filter((F.entity == "jacket") & (F.step == "to_brand")), JacketStates.choosing_model)
+async def on_jacket_back_to_brand(query: CallbackQuery, state: FSMContext):
+    await query.answer()
+    data = await state.get_data()
+
+    collage_msg_id = data.get("collage_msg_id")
+    if collage_msg_id:
+        try:
+            await query.bot.delete_message(query.message.chat.id, collage_msg_id)
+        except Exception:
+            pass
+
+    brands = await db.get_jacket_brands()
+    user = await db.get_user_by_tg_id(query.from_user.id)
+    warning = "❗ <i>Куртка заменит выбранный комбинезон.</i>\n\n" if user.suit_file_id is not None else ""
+
+    await state.set_state(JacketStates.choosing_brand)
+    await query.message.edit_text(
+        f"{warning}🧥 <b>Выберите бренд куртки:</b>",
+        reply_markup=brands_keyboard(brands, JacketBrandCallback, cancel_entity="jacket"),
+        parse_mode="HTML",
+    )
 
 
 @router.callback_query(JacketModelCallback.filter(), JacketStates.choosing_model)
@@ -84,6 +109,34 @@ async def on_jacket_model(query: CallbackQuery, callback_data: JacketModelCallba
     text_msg = await query.message.answer(
         "🎨 Выберите расцветку:",
         reply_markup=jacket_colors_keyboard(colors, callback_data.jacket_id),
+        parse_mode="HTML",
+    )
+    await state.update_data(collage_msg_id=photo_msg.message_id, menu_msg_id=text_msg.message_id)
+
+
+@router.callback_query(BackCallback.filter((F.entity == "jacket") & (F.step == "to_model")), JacketStates.choosing_color)
+async def on_jacket_back_to_model(query: CallbackQuery, state: FSMContext):
+    await query.answer()
+    data = await state.get_data()
+    brand = data.get("brand", "")
+
+    collage_msg_id = data.get("collage_msg_id")
+    if collage_msg_id:
+        try:
+            await query.bot.delete_message(query.message.chat.id, collage_msg_id)
+        except Exception:
+            pass
+
+    jackets = await db.get_jacket_models(brand)
+    collage_path = await get_or_build_brand_collage("jacket", brand)
+
+    await state.set_state(JacketStates.choosing_model)
+    await query.message.delete()
+
+    photo_msg = await query.message.answer_photo(photo=FSInputFile(collage_path))
+    text_msg = await query.message.answer(
+        f"🧥 <b>{brand}</b> — выберите модель:",
+        reply_markup=jacket_models_keyboard(jackets),
         parse_mode="HTML",
     )
     await state.update_data(collage_msg_id=photo_msg.message_id, menu_msg_id=text_msg.message_id)
@@ -126,6 +179,23 @@ async def on_jacket_color(query: CallbackQuery, callback_data: JacketColorCallba
             parse_mode="HTML",
         )
 
+
+
+
+@router.callback_query(BackCallback.filter((F.entity == "jacket") & (F.step == "to_menu")), JacketStates.choosing_brand)
+async def on_jacket_cancel(query: CallbackQuery, state: FSMContext):
+    await query.answer()
+    data = await state.get_data()
+    onboarding = data.get("onboarding", False)
+    if onboarding:
+        await state.set_state(OnboardingStates.after_bike)
+        await state.update_data(onboarding=True)
+        from handlers.start import show_onboarding_equip_screen
+        await show_onboarding_equip_screen(query, state)
+    else:
+        from handlers.start import send_main_menu
+        user = await db.get_user_by_tg_id(query.from_user.id)
+        await send_main_menu(query.message, user, state)
 
 @router.callback_query(MenuCallback.filter(F.action == "jacket_remove"))
 async def on_jacket_remove(query: CallbackQuery, state: FSMContext):
