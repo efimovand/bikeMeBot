@@ -91,7 +91,7 @@ async def cmd_start(message: Message, state: FSMContext):
     await state.set_state(OnboardingStates.waiting_policy)
     await message.answer(
         (
-            "👋 Привет! Это <b>MotoMe</b> — бот, который примерит на тебя любой мотоцикл и экип.\n\n"
+            "👋 Привет! Это <b>BikeMe</b> — бот, который примерит на тебя любой мотоцикл и экип.\n\n"
             "Как это работает:\n"
             "1. Выбираешь байк и цвет\n"
             "2. Выбираешь экипировку (по желанию)\n"

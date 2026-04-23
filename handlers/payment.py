@@ -78,7 +78,7 @@ async def on_topup_package(query: CallbackQuery, callback_data: TopupCallback):
 
     await query.message.answer_invoice(
         title=f"{gens} {plural}",
-        description=f"Пополнение баланса на {gens} {plural} в MotoMe",
+        description=f"Пополнение баланса на {gens} {plural} в BikeMe",
         payload=f"topup:{stars}:{gens}",
         currency="XTR",
         prices=[LabeledPrice(label=f"{gens} {plural}", amount=stars)],
