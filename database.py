@@ -722,6 +722,22 @@ async def get_user_generations(user_id: int, limit: int = 10) -> list[Generation
         return list(result.scalars().all())
 
 
+async def get_catalog_counts() -> dict[str, int]:
+    async with get_session() as session:
+        counts = {}
+        for name, Model in [
+            ("bikes", Bike),
+            ("helmets", Helmet),
+            ("jackets", Jacket),
+            ("suits", Suit),
+            ("gloves", Glove),
+            ("boots", Boot),
+        ]:
+            result = await session.execute(select(func.count(Model.id)))
+            counts[name] = result.scalar_one()
+        return counts
+
+
 # ---------------------------------------------------------------------------
 # DictionaryPrompt
 # ---------------------------------------------------------------------------

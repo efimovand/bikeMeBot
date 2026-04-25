@@ -7,7 +7,7 @@ from config import settings
 import database as db
 from handlers.start import send_main_menu
 from kie_ai import generate_for_user, InsufficientCreditsError, ContentPolicyError
-from keyboards import MenuCallback, generate_again_keyboard
+from keyboards import MenuCallback, generate_again_keyboard, no_balance_keyboard, NoBalanceCallback
 from prompts import make_final_prompt
 from utils import _config_msg_ids
 
@@ -90,12 +90,23 @@ async def run_generation(message_or_query, tg_id: int):
 
     user = await db.get_user_by_tg_id(tg_id)
     if user.balance <= 0:
-        from handlers.payment import show_topup_screen
+        from database import get_catalog_counts
+        counts = await get_catalog_counts()
+
+        text = (
+            "😔 <b>У вас закончились генерации.</b>\n\n"
+            f"Чтобы продолжить пользоваться ботом и получить доступ к:\n"
+            f"• 🏍 более {counts['bikes']} мотоциклов\n"
+            f"• 🪖 более {counts['helmets']} шлемов\n"
+            f"• 🧥 курткам, комбинезонам, перчаткам и ботинкам\n\n"
+            "— пополните баланс."
+        )
+
         if isinstance(message_or_query, Message):
-            await show_topup_screen(message_or_query)
+            await message_or_query.answer(text, reply_markup=no_balance_keyboard(), parse_mode="HTML")
         else:
             await message_or_query.answer()
-            await show_topup_screen(message_or_query)
+            await message_or_query.message.answer(text, reply_markup=no_balance_keyboard(), parse_mode="HTML")
         return
 
     _active_generations.add(tg_id)
@@ -246,3 +257,23 @@ async def on_main_menu(query: CallbackQuery, state: FSMContext):
         pass
     user = await db.get_user_by_tg_id(query.from_user.id)
     await send_main_menu(query.message, user, state)
+
+
+@router.callback_query(NoBalanceCallback.filter(F.action == "topup"))
+async def on_no_balance_topup(query: CallbackQuery, state: FSMContext):
+    await query.answer()
+    try:
+        await query.message.delete()
+    except Exception:
+        pass
+    from handlers.payment import show_topup_screen
+    await show_topup_screen(query)
+
+
+@router.callback_query(NoBalanceCallback.filter(F.action == "cancel"))
+async def on_no_balance_cancel(query: CallbackQuery, state: FSMContext):
+    await query.answer()
+    try:
+        await query.message.delete()
+    except Exception:
+        pass

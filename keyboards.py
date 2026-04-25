@@ -110,6 +110,10 @@ class LocationResetCallback(CallbackData, prefix="location_reset"):
 
 class OnboardingContinueCallback(CallbackData, prefix="onb_cont"):
     action: str  # "helmet" | "jacket" | "photos"
+    
+
+class NoBalanceCallback(CallbackData, prefix="no_balance"):
+    action: str  # "topup" | "cancel"
 
 
 class BackCallback(CallbackData, prefix="back"):
@@ -260,7 +264,7 @@ def brands_keyboard(brands: list[str], callback_class, cancel_entity: str = "") 
     for brand in brands:
         builder.button(text=brand, callback_data=callback_class(brand=brand))
     if cancel_entity:
-        builder.button(text="⬅️ В меню", callback_data=BackCallback(entity=cancel_entity, step="to_menu"))
+        builder.button(text="◀️ В меню", callback_data=BackCallback(entity=cancel_entity, step="to_menu"))
     builder.adjust(2)
     return builder.as_markup()
 
@@ -272,7 +276,7 @@ def bike_models_keyboard(bikes: list) -> InlineKeyboardMarkup:
             text=bike.model,
             callback_data=BikeModelCallback(bike_id=bike.id)
         )
-    builder.button(text="⬅️ Назад", callback_data=BackCallback(entity="bike", step="to_brand"))
+    builder.button(text="◀️ Назад", callback_data=BackCallback(entity="bike", step="to_brand"))
     builder.adjust(1)
     return builder.as_markup()
 
@@ -284,7 +288,7 @@ def bike_colors_keyboard(colors: list, bike_id: int) -> InlineKeyboardMarkup:
             text=color.name,
             callback_data=BikeColorCallback(bike_id=bike_id, color_id=color.id)
         )
-    builder.button(text="⬅️ Назад", callback_data=BackCallback(entity="bike", step="to_model"))
+    builder.button(text="◀️ Назад", callback_data=BackCallback(entity="bike", step="to_model"))
     builder.adjust(1)
     return builder.as_markup()
 
@@ -296,7 +300,7 @@ def helmet_models_keyboard(helmets: list) -> InlineKeyboardMarkup:
             text=helmet.model,
             callback_data=HelmetModelCallback(helmet_id=helmet.id)
         )
-    builder.button(text="⬅️ Назад", callback_data=BackCallback(entity="helmet", step="to_brand"))
+    builder.button(text="◀️ Назад", callback_data=BackCallback(entity="helmet", step="to_brand"))
     builder.adjust(1)
     return builder.as_markup()
 
@@ -308,7 +312,7 @@ def helmet_colors_keyboard(colors: list, helmet_id: int) -> InlineKeyboardMarkup
             text=color.name,
             callback_data=HelmetColorCallback(helmet_id=helmet_id, color_id=color.id)
         )
-    builder.button(text="⬅️ Назад", callback_data=BackCallback(entity="helmet", step="to_model"))
+    builder.button(text="◀️ Назад", callback_data=BackCallback(entity="helmet", step="to_model"))
     builder.adjust(1)
     return builder.as_markup()
 
@@ -320,7 +324,7 @@ def jacket_models_keyboard(jackets: list) -> InlineKeyboardMarkup:
             text=jacket.model,
             callback_data=JacketModelCallback(jacket_id=jacket.id)
         )
-    builder.button(text="⬅️ Назад", callback_data=BackCallback(entity="jacket", step="to_brand"))
+    builder.button(text="◀️ Назад", callback_data=BackCallback(entity="jacket", step="to_brand"))
     builder.adjust(1)
     return builder.as_markup()
 
@@ -332,7 +336,7 @@ def jacket_colors_keyboard(colors: list, jacket_id: int) -> InlineKeyboardMarkup
             text=color.name,
             callback_data=JacketColorCallback(jacket_id=jacket_id, color_id=color.id)
         )
-    builder.button(text="⬅️ Назад", callback_data=BackCallback(entity="jacket", step="to_model"))
+    builder.button(text="◀️ Назад", callback_data=BackCallback(entity="jacket", step="to_model"))
     builder.adjust(1)
     return builder.as_markup()
 
@@ -341,7 +345,7 @@ def suit_models_keyboard(suits: list) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for suit in suits:
         builder.button(text=suit.model, callback_data=SuitModelCallback(suit_id=suit.id))
-    builder.button(text="⬅️ Назад", callback_data=BackCallback(entity="suit", step="to_brand"))
+    builder.button(text="◀️ Назад", callback_data=BackCallback(entity="suit", step="to_brand"))
     builder.adjust(1)
     return builder.as_markup()
 
@@ -353,7 +357,7 @@ def suit_colors_keyboard(colors: list, suit_id: int) -> InlineKeyboardMarkup:
             text=color.name,
             callback_data=SuitColorCallback(suit_id=suit_id, color_id=color.id)
         )
-    builder.button(text="⬅️ Назад", callback_data=BackCallback(entity="suit", step="to_model"))
+    builder.button(text="◀️ Назад", callback_data=BackCallback(entity="suit", step="to_model"))
     builder.adjust(1)
     return builder.as_markup()
 
@@ -362,7 +366,7 @@ def glove_models_keyboard(gloves: list) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for glove in gloves:
         builder.button(text=glove.model, callback_data=GloveModelCallback(glove_id=glove.id))
-    builder.button(text="⬅️ Назад", callback_data=BackCallback(entity="glove", step="to_brand"))
+    builder.button(text="◀️ Назад", callback_data=BackCallback(entity="glove", step="to_brand"))
     builder.adjust(1)
     return builder.as_markup()
 
@@ -374,7 +378,7 @@ def glove_colors_keyboard(colors: list, glove_id: int) -> InlineKeyboardMarkup:
             text=color.name,
             callback_data=GloveColorCallback(glove_id=glove_id, color_id=color.id)
         )
-    builder.button(text="⬅️ Назад", callback_data=BackCallback(entity="glove", step="to_model"))
+    builder.button(text="◀️ Назад", callback_data=BackCallback(entity="glove", step="to_model"))
     builder.adjust(1)
     return builder.as_markup()
 
@@ -383,7 +387,7 @@ def boot_models_keyboard(boots: list) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for boot in boots:
         builder.button(text=boot.model, callback_data=BootModelCallback(boot_id=boot.id))
-    builder.button(text="⬅️ Назад", callback_data=BackCallback(entity="boot", step="to_brand"))
+    builder.button(text="◀️ Назад", callback_data=BackCallback(entity="boot", step="to_brand"))
     builder.adjust(1)
     return builder.as_markup()
 
@@ -395,7 +399,7 @@ def boot_colors_keyboard(colors: list, boot_id: int) -> InlineKeyboardMarkup:
             text=color.name,
             callback_data=BootColorCallback(boot_id=boot_id, color_id=color.id)
         )
-    builder.button(text="⬅️ Назад", callback_data=BackCallback(entity="boot", step="to_model"))
+    builder.button(text="◀️ Назад", callback_data=BackCallback(entity="boot", step="to_model"))
     builder.adjust(1)
     return builder.as_markup()
 
@@ -406,4 +410,18 @@ def generate_again_keyboard() -> InlineKeyboardMarkup:
         text="✨ Сгенерировать ещё раз",
         callback_data=MenuCallback(action="main_menu")
     )
+    return builder.as_markup()
+
+
+def no_balance_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="⭐️ Пополнить баланс",
+        callback_data=NoBalanceCallback(action="topup"),
+    )
+    builder.button(
+        text="◀️ Назад",
+        callback_data=NoBalanceCallback(action="cancel"),
+    )
+    builder.adjust(1)
     return builder.as_markup()
