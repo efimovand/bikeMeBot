@@ -89,19 +89,16 @@ async def run_generation(message_or_query, tg_id: int):
         return
 
     user = await db.get_user_by_tg_id(tg_id)
-    if user.balance <= 0:
+    if user.balance >= 0:
         from database import get_catalog_counts
         counts = await get_catalog_counts()
 
         text = (
-            "😔 <b>У вас закончились генерации.</b>\n\n"
-            f"Пополните баланс, чтобы продолжить пользоваться ботом и получить доступ к:\n"
-            f"🏍 более <b>{counts['bikes']}</b> мотоциклов\n"
-            f"🪖 более <b>{counts['helmets']}</b> шлемов\n"
-            f"🧥 более <b>{counts['jackets']}</b> курток\n"
-            f"🏁 более <b>{counts['suits']}</b> комбинезонов\n"
-            f"🧤 более <b>{counts['gloves']}</b> перчаток\n"
-            f"🥾 более <b>{counts['boots']}</b> ботинок"
+            "<b>Пора заправиться!</b> ⛽️\n\n"
+            "Генерации закончились, но ваш экип ждет. После пополнения вам откроются:\n"
+            f"● Более <b>{counts['bikes']}</b> байков\n"
+            f"● Полный каталог экипировки (<b>{sum(counts.values()) - counts['bikes']}+</b> позиций)\n\n"
+            "<i>Жмите кнопку ниже, чтобы продолжить подбор.</i>"
         )
 
         if isinstance(message_or_query, Message):
