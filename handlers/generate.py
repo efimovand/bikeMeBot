@@ -95,11 +95,13 @@ async def run_generation(message_or_query, tg_id: int):
 
         text = (
             "😔 <b>У вас закончились генерации.</b>\n\n"
-            f"Чтобы продолжить пользоваться ботом и получить доступ к:\n"
-            f"• 🏍 более {counts['bikes']} мотоциклов\n"
-            f"• 🪖 более {counts['helmets']} шлемов\n"
-            f"• 🧥 курткам, комбинезонам, перчаткам и ботинкам\n\n"
-            "— пополните баланс."
+            f"Пополните баланс, чтобы продолжить пользоваться ботом и получить доступ к:\n"
+            f"🏍 более <b>{counts['bikes']}</b> мотоциклов\n"
+            f"🪖 более <b>{counts['helmets']}</b> шлемов\n"
+            f"🧥 более <b>{counts['jackets']}</b> курток\n"
+            f"🏁 более <b>{counts['suits']}</b> комбинезонов\n"
+            f"🧤 более <b>{counts['gloves']}</b> перчаток\n"
+            f"🥾 более <b>{counts['boots']}</b> ботинок"
         )
 
         if isinstance(message_or_query, Message):
