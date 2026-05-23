@@ -761,11 +761,90 @@ async def get_default_prompt() -> DictionaryPrompt | None:
 
 
 # ---------------------------------------------------------------------------
+# Silhouettes
+# ---------------------------------------------------------------------------
+
+def _find_silhouette(model_dir, model_slug: str):
+    candidate = model_dir / f"{model_slug}_silhouette.jpg"
+    return candidate if candidate.exists() else None
+
+
+def _generate_silhouette(source_path, out_path):
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    script = Path(__file__).parent / "make_silhouettes.py"
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+    result = subprocess.run(
+        [sys.executable, str(script), "--single", str(source_path)],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env=env,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip())
+    return out_path if out_path.exists() else None
+
+
+async def _get_bike_items_for_collage(brand: str):
+    import asyncio
+    from pathlib import Path
+    from config import settings
+
+    async with get_session() as session:
+        result = await session.execute(
+            select(Bike)
+            .where(Bike.brand == brand)
+            .options(selectinload(Bike.files))
+            .order_by(Bike.id)
+        )
+        bikes = list(result.scalars().all())
+
+    base_dir = Path(settings.media_dir)
+    loop = asyncio.get_running_loop()
+    items = []
+
+    for bike in bikes:
+        if not bike.files:
+            items.append((bike.model, None))
+            continue
+
+        file_path = base_dir / bike.files[0].file
+        model_dir = file_path.parent
+        model_slug = model_dir.name
+
+        silhouette = _find_silhouette(model_dir, model_slug)
+        if silhouette is None:
+            out = model_dir / f"{model_slug}_silhouette.jpg"
+            if file_path.exists():
+                try:
+                    silhouette = await loop.run_in_executor(
+                        None, _generate_silhouette, file_path, out
+                    )
+                except Exception as e:
+                    print(f"[collage] Silhouette generation failed for {brand} {bike.model}: {e}")
+
+        rel = str(silhouette.relative_to(base_dir)) if silhouette else None
+        items.append((bike.model, rel))
+
+    return items
+
+# ---------------------------------------------------------------------------
 # Collage
 # ---------------------------------------------------------------------------
 
 async def get_brand_collage_state(type: str, brand: str):
-    model_map = {"helmet": Helmet, "jacket": Jacket, "suit": Suit, "glove": Glove, "boot": Boot}
+    model_map = {
+        "bike": Bike,
+        "helmet": Helmet,
+        "jacket": Jacket,
+        "suit": Suit,
+        "glove": Glove,
+        "boot":   Boot,
+    }
     Model = model_map[type]
 
     async with get_session() as session:
@@ -843,6 +922,9 @@ async def upsert_color_collage(type: str, brand: str, model_id: int, file_path: 
 
 
 async def get_items_for_collage(item_type: str, brand: str) -> list[tuple[str, str | None]]:
+    if item_type == "bike":
+        return await _get_bike_items_for_collage(brand)
+
     model_map = {
         "helmet": (Helmet, HelmetFile, Helmet.id),
         "jacket": (Jacket, JacketFile, Jacket.id),
@@ -868,7 +950,7 @@ async def get_items_for_collage(item_type: str, brand: str) -> list[tuple[str, s
                     if f.color_id == 1:
                         return f.file
                 return files[0].file
-            return random.choice(files).file
+            return files[0].file
 
         return [(r.model, pick_file(r.files)) for r in rows]
 
