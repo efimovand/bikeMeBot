@@ -77,7 +77,9 @@ def make_silhouette(
     rows, cols = np.where(filled > 0)
     if len(rows) > 0:
         top_y = rows.min()
-        top_x = cols[rows == top_y].mean()
+        band_threshold = top_y + int((rows.max() - top_y) * 0.10)
+        top_mask = rows <= band_threshold
+        top_x = cols[top_mask].mean()
         if top_x <= w / 2:
             filled = np.fliplr(filled)
 

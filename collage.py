@@ -18,7 +18,6 @@ from typing import NamedTuple
 import requests
 from PIL import Image, ImageDraw, ImageFont, ImageChops
 import database as db
-import numpy as np
 
 
 BASE_DIR = Path(__file__).resolve().parent / "media"
