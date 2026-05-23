@@ -72,8 +72,15 @@ def make_silhouette(
     contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     filled = np.zeros_like(binary)
     cv2.drawContours(filled, contours, -1, 255, thickness=cv2.FILLED)
-
     h, w = filled.shape
+
+    rows, cols = np.where(filled > 0)
+    if len(rows) > 0:
+        top_y = rows.min()
+        top_x = cols[rows == top_y].mean()
+        if top_x <= w / 2:
+            filled = np.fliplr(filled)
+
     rgba = np.zeros((h, w, 4), dtype=np.uint8)
     mask = filled > 0
     rgba[mask] = (*FILL_COLOR, 255)
