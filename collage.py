@@ -28,11 +28,12 @@ FONT_BOLD_PATH = None
 FONT_REGULAR_PATH = None
 
 TYPE_SUBDIR = {
-    "helmet": "helmets",
-    "jacket": "jackets",
-    "suit":   "suits",
-    "glove":  "gloves",
-    "boot":   "boots",
+    "bike":    "bikes",
+    "helmet":  "helmets",
+    "jacket":  "jackets",
+    "suit":    "suits",
+    "glove":   "gloves",
+    "boot":    "boots",
 }
 
 
@@ -43,10 +44,7 @@ def _brand_dir(item_type: str, brand: str) -> Path:
     return path
 
 
-# -------------------------------------------------------------------
 # FONTS
-# -------------------------------------------------------------------
-
 def _load_font(path, size):
     candidates = [
         path,
@@ -68,10 +66,7 @@ font_brand = _load_font(FONT_REGULAR_PATH, 16)
 font_model = _load_font(FONT_BOLD_PATH, 22)
 
 
-# -------------------------------------------------------------------
 # IMAGE LOADER
-# -------------------------------------------------------------------
-
 def load_image(path: str) -> Image.Image:
     if not path:
         raise ValueError("Empty image path")
@@ -85,12 +80,8 @@ def load_image(path: str) -> Image.Image:
     return Image.open(full_path)
 
 
-# -------------------------------------------------------------------
 # RENDER HELPERS
-# -------------------------------------------------------------------
-
 def _fit_on_white(img: Image.Image, w: int, h: int) -> Image.Image:
-    """Вписывает изображение в заданный размер на чисто БЕЛЫЙ фон."""
     ratio = min(w / img.width, h / img.height) * 0.85
     nw, nh = int(img.width * ratio), int(img.height * ratio)
     img = img.resize((nw, nh), Image.LANCZOS)
@@ -105,19 +96,32 @@ def _fit_on_white(img: Image.Image, w: int, h: int) -> Image.Image:
     return bg
 
 
+def _fit_on_dark(img: Image.Image, w: int, h: int) -> Image.Image:
+    ratio = min(w / img.width, h / img.height) * 1.1
+    nw, nh = int(img.width * ratio), int(img.height * ratio)
+    img = img.resize((nw, nh), Image.LANCZOS)
+
+    bg = Image.new("RGB", (w, h), BG_COLOR)
+    x, y = (w - nw) // 2, (h - nh) // 2
+
+    if img.mode == "RGBA":
+        bg.paste(img, (x, y), img)
+    else:
+        bg.paste(img, (x, y))
+    return bg
+
+
 def _truncate(draw, text, font, max_w):
-    """Отрезает текст, если он не влезает, добавляя многоточие."""
     if draw.textlength(text, font=font) <= max_w:
         return text
-
     while draw.textlength(text + "...", font=font) > max_w and len(text) > 1:
         text = text[:-1]
     return text.rstrip() + "..."
 
 
-def _draw_card(label_top: str, label_bottom: str, photo_path: str | None) -> Image.Image:
-    """Белый фон под фото + темный подвал для текста."""
-    card = Image.new("RGBA", (CARD_SIZE, CARD_SIZE), (255, 255, 255))
+def _draw_card(label_top: str, label_bottom: str, photo_path: str | None, dark_bg: bool = False) -> Image.Image:
+    card_color = BG_COLOR if dark_bg else (255, 255, 255)
+    card = Image.new("RGBA", (CARD_SIZE, CARD_SIZE), card_color)
     draw = ImageDraw.Draw(card)
 
     photo_h = CARD_SIZE - PLATE_H
@@ -125,13 +129,12 @@ def _draw_card(label_top: str, label_bottom: str, photo_path: str | None) -> Ima
     if photo_path:
         try:
             photo = load_image(photo_path).convert("RGBA")
-            photo_fitted = _fit_on_white(photo, CARD_SIZE, photo_h)
-            card.paste(photo_fitted, (0, 0))
+            fitted = (_fit_on_dark if dark_bg else _fit_on_white)(photo, CARD_SIZE, photo_h)
+            card.paste(fitted, (0, 0))
         except Exception as e:
             print(f"Error loading image: {e}")
 
     draw.rectangle([(0, photo_h), (CARD_SIZE, CARD_SIZE)], fill=BG_COLOR)
-
     draw.line([(0, photo_h), (CARD_SIZE, photo_h)], fill=TEXT_ACCENT, width=2)
 
     text_w_limit = CARD_SIZE - 30
@@ -155,21 +158,17 @@ def _draw_card(label_top: str, label_bottom: str, photo_path: str | None) -> Ima
     return final_card
 
 
-# -------------------------------------------------------------------
 # BUILD
-# -------------------------------------------------------------------
-
 class ItemView(NamedTuple):
     label_top: str
     label_bottom: str
     photo_path: str | None
 
 
-def _build_collage(items: list[ItemView], out_path: Path) -> Path:
+def _build_collage(items: list[ItemView], out_path: Path, dark_bg: bool = False) -> Path:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     cols = 4 if len(items) > 9 else 3
-
     rows = -(-len(items) // cols)
     w = cols * CARD_SIZE + (cols - 1) * GAP + PADDING * 2
     h = rows * CARD_SIZE + (rows - 1) * GAP + PADDING * 2
@@ -181,16 +180,14 @@ def _build_collage(items: list[ItemView], out_path: Path) -> Path:
         x = PADDING + col * (CARD_SIZE + GAP)
         y = PADDING + row * (CARD_SIZE + GAP)
 
-        card_img = _draw_card(item.label_top, item.label_bottom, item.photo_path)
+        card_img = _draw_card(item.label_top, item.label_bottom, item.photo_path, dark_bg=dark_bg)
         canvas.paste(card_img, (x, y), card_img)
 
     canvas.save(out_path, "JPEG", quality=95, optimize=True)
     return out_path
 
-# -------------------------------------------------------------------
-# PUBLIC API
-# -------------------------------------------------------------------
 
+# PUBLIC API
 async def get_or_build_brand_collage(item_type: str, brand: str) -> Path:
     current_count, cached_file, cached_count = await db.get_brand_collage_state(item_type, brand)
 
@@ -202,10 +199,16 @@ async def get_or_build_brand_collage(item_type: str, brand: str) -> Path:
     raw_items = await db.get_items_for_collage(item_type, brand)
     items = [ItemView(brand, model, photo) for model, photo in raw_items]
 
-    out_path = _brand_dir(item_type, brand) / "models.jpg"
+    if item_type == "bike":
+        slug = brand.lower().replace(" ", "_")
+        out_path = BASE_DIR / "collages" / "bikes" / f"{slug}_silhouettes.jpg"
+        dark_bg = True
+    else:
+        out_path = _brand_dir(item_type, brand) / "models.jpg"
+        dark_bg = False
 
     def _generate():
-        return _build_collage(items, out_path)
+        return _build_collage(items, out_path, dark_bg=dark_bg)
 
     path = await asyncio.get_running_loop().run_in_executor(None, _generate)
     await db.upsert_brand_collage(item_type, brand, str(path), current_count)

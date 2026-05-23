@@ -14,7 +14,7 @@ from utils import _config_msg_ids
 
 router = Router()
 BASE = Path(settings.media_dir)
-TEST_MEDIA_BASE = Path("C:/Users/masha/Desktop/bikeMeBot/media/")  # TODO: убрать после тестов
+TEST_MEDIA_BASE = Path(__file__).resolve().parent.parent / "media"  # TODO: убрать после тестов
 
 ESTIMATED_SECONDS = 80
 LOADER_INTERVAL = 6

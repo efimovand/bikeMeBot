@@ -1,8 +1,9 @@
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, FSInputFile
 
 import database as db
+from collage import get_or_build_brand_collage
 from keyboards import (
     BackCallback,
     BikeBrandCallback, BikeColorCallback, BikeModelCallback,
@@ -33,28 +34,44 @@ async def on_bike_menu(query: CallbackQuery, state: FSMContext):
 @router.callback_query(BikeBrandCallback.filter(), BikeStates.choosing_brand)
 async def on_bike_brand(query: CallbackQuery, callback_data: BikeBrandCallback, state: FSMContext):
     await query.answer()
-    bikes = await db.get_bike_models(callback_data.brand)
+    brand = callback_data.brand
 
-    await state.update_data(brand=callback_data.brand)
+    collage_path = await get_or_build_brand_collage("bike", brand)
+    bikes = await db.get_bike_models(brand)
+
+    await state.update_data(brand=brand)
     await state.set_state(BikeStates.choosing_model)
-    await query.message.edit_text(
-        f"🏍 <b>{callback_data.brand}</b> — выберите модель:",
+    await query.message.delete()
+
+    photo_msg = await query.message.answer_photo(photo=FSInputFile(collage_path))
+    text_msg = await query.message.answer(
+        f"🏍 <b>{brand}</b> — выберите модель:",
         reply_markup=bike_models_keyboard(bikes),
         parse_mode="HTML",
     )
+    await state.update_data(collage_msg_id=photo_msg.message_id, menu_msg_id=text_msg.message_id)
 
 
 @router.callback_query(BackCallback.filter((F.entity == "bike") & (F.step == "to_brand")), BikeStates.choosing_model)
 async def on_bike_back_to_brand(query: CallbackQuery, state: FSMContext):
     await query.answer()
-    brands = await db.get_bike_brands()
+    data = await state.get_data()
 
+    collage_msg_id = data.get("collage_msg_id")
+    if collage_msg_id:
+        try:
+            await query.bot.delete_message(query.message.chat.id, collage_msg_id)
+        except Exception:
+            pass
+
+    brands = await db.get_bike_brands()
     await state.set_state(BikeStates.choosing_brand)
     await query.message.edit_text(
         "🏍 <b>Выберите бренд мотоцикла:</b>",
         reply_markup=brands_keyboard(brands, BikeBrandCallback, cancel_entity="bike"),
         parse_mode="HTML",
     )
+
 
 @router.callback_query(BackCallback.filter((F.entity == "bike") & (F.step == "to_menu")), BikeStates.choosing_brand)
 async def on_bike_cancel(query: CallbackQuery, state: FSMContext):
@@ -68,10 +85,19 @@ async def on_bike_cancel(query: CallbackQuery, state: FSMContext):
 @router.callback_query(BikeModelCallback.filter(), BikeStates.choosing_model)
 async def on_bike_model(query: CallbackQuery, callback_data: BikeModelCallback, state: FSMContext):
     await query.answer()
-    colors = await db.get_bike_colors(callback_data.bike_id)
+    data = await state.get_data()
 
+    collage_msg_id = data.get("collage_msg_id")
+    if collage_msg_id:
+        try:
+            await query.bot.delete_message(query.message.chat.id, collage_msg_id)
+        except Exception:
+            pass
+
+    colors = await db.get_bike_colors(callback_data.bike_id)
     await state.update_data(bike_id=callback_data.bike_id)
     await state.set_state(BikeStates.choosing_color)
+
     await query.message.edit_text(
         "🎨 Выберите расцветку:",
         reply_markup=bike_colors_keyboard(colors, callback_data.bike_id),
@@ -87,11 +113,17 @@ async def on_bike_back_to_model(query: CallbackQuery, state: FSMContext):
     bikes = await db.get_bike_models(brand)
 
     await state.set_state(BikeStates.choosing_model)
-    await query.message.edit_text(
+
+    collage_path = await get_or_build_brand_collage("bike", brand)
+    await query.message.delete()
+
+    photo_msg = await query.message.answer_photo(photo=FSInputFile(collage_path))
+    text_msg = await query.message.answer(
         f"🏍 <b>{brand}</b> — выберите модель:",
         reply_markup=bike_models_keyboard(bikes),
         parse_mode="HTML",
     )
+    await state.update_data(collage_msg_id=photo_msg.message_id, menu_msg_id=text_msg.message_id)
 
 
 @router.callback_query(BikeColorCallback.filter(), BikeStates.choosing_color)
@@ -102,7 +134,6 @@ async def on_bike_color(query: CallbackQuery, callback_data: BikeColorCallback, 
         return
 
     await query.answer()
-
     await db.update_user_bike_file(query.from_user.id, bike_file.id)
 
     data = await state.get_data()
