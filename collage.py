@@ -95,6 +95,23 @@ def _crop_to_content(img: Image.Image, bg_color=BG_COLOR, margin: int = 20) -> I
     return img.crop((x1, y1, x2, y2))
 
 
+def _detect_bike_facing_right(img: Image.Image) -> bool:
+    gray = img.convert("L")
+    w, h = gray.size
+    top_band = gray.crop((0, 0, w, int(h * 0.35)))
+    pixels = list(top_band.getdata())
+
+    total = sum(1 for p in pixels if p > 20)
+    if total == 0:
+        return True
+
+    right_count = sum(
+        1 for i, p in enumerate(pixels)
+        if p > 20 and (i % top_band.width) > w // 2
+    )
+    return right_count > total / 2
+
+
 def _fit_on_white(img: Image.Image, w: int, h: int) -> Image.Image:
     ratio = min(w / img.width, h / img.height) * 0.85
     nw, nh = int(img.width * ratio), int(img.height * ratio)
@@ -112,6 +129,10 @@ def _fit_on_white(img: Image.Image, w: int, h: int) -> Image.Image:
 
 def _fit_on_dark(img: Image.Image, w: int, h: int) -> Image.Image:
     img = _crop_to_content(img)
+
+    if not _detect_bike_facing_right(img):
+        img = img.transpose(Image.FLIP_LEFT_RIGHT)
+
     ratio = min(w / img.width, h / img.height) * 0.85
     nw, nh = int(img.width * ratio), int(img.height * ratio)
     img = img.resize((nw, nh), Image.LANCZOS)
