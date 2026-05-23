@@ -3,7 +3,7 @@ from pathlib import Path
 from io import BytesIO
 from typing import NamedTuple
 import requests
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageChops
 import database as db
 
 
@@ -81,6 +81,20 @@ def load_image(path: str) -> Image.Image:
 
 
 # RENDER HELPERS
+def _crop_to_content(img: Image.Image, bg_color=BG_COLOR, margin: int = 20) -> Image.Image:
+    bg = Image.new("RGB", img.size, bg_color)
+    diff = ImageChops.difference(img.convert("RGB"), bg)
+    bbox = diff.convert("L").getbbox()
+    if bbox is None:
+        return img
+    x1, y1, x2, y2 = bbox
+    x1 = max(0, x1 - margin)
+    y1 = max(0, y1 - margin)
+    x2 = min(img.width, x2 + margin)
+    y2 = min(img.height, y2 + margin)
+    return img.crop((x1, y1, x2, y2))
+
+
 def _fit_on_white(img: Image.Image, w: int, h: int) -> Image.Image:
     ratio = min(w / img.width, h / img.height) * 0.85
     nw, nh = int(img.width * ratio), int(img.height * ratio)
@@ -97,7 +111,8 @@ def _fit_on_white(img: Image.Image, w: int, h: int) -> Image.Image:
 
 
 def _fit_on_dark(img: Image.Image, w: int, h: int) -> Image.Image:
-    ratio = min(w / img.width, h / img.height) * 1.1
+    img = _crop_to_content(img)
+    ratio = min(w / img.width, h / img.height) * 0.85
     nw, nh = int(img.width * ratio), int(img.height * ratio)
     img = img.resize((nw, nh), Image.LANCZOS)
 
