@@ -1,3 +1,16 @@
+"""
+Генерирует коллажи каталога экипировки и байков.
+Результат: media/collages/<type>/<brand_slug>/models.jpg, colors_<model_slug>.jpg
+
+Запуск:
+    python collage.py                               # все типы, все бренды
+    python collage.py --type bike                   # только байки
+    python collage.py --type helmet --brand AGV     # конкретный бренд
+    python collage.py --force                       # пересоздать все (чистит кеш)
+    python collage.py --type jacket --force         # пересоздать только куртки
+"""
+
+
 import asyncio
 from pathlib import Path
 from io import BytesIO
@@ -271,3 +284,88 @@ async def get_or_build_color_collage(item_type: str, brand: str, model_id: int, 
     path = await asyncio.get_running_loop().run_in_executor(None, _generate)
     await db.upsert_color_collage(item_type, brand, model_id, str(path), current_count)
     return path
+
+
+# Ручной запуск
+async def run_collage_batch(type_filter: str | None, brand_filter: str | None, force: bool):
+    import database as db
+
+    type_map = {
+        "bike": db.get_bike_brands,
+        "helmet": db.get_helmet_brands,
+        "jacket": db.get_jacket_brands,
+        "suit": db.get_suit_brands,
+        "glove": db.get_glove_brands,
+        "boot": db.get_boot_brands,
+    }
+
+    types = [type_filter] if type_filter else list(type_map.keys())
+
+    if force:
+        from sqlalchemy import delete
+        from models import Collage
+        async with db.get_session() as session:
+            q = delete(Collage)
+            if type_filter:
+                q = q.where(Collage.type == type_filter)
+            await session.execute(q)
+        print("🗑  Кеш коллажей очищен.")
+
+    ok = fail = 0
+
+    for item_type in types:
+        brands = await type_map[item_type]()
+        if brand_filter:
+            brands = [b for b in brands if brand_filter.lower() in b.lower()]
+
+        for brand in brands:
+            try:
+                path = await get_or_build_brand_collage(item_type, brand)
+                print(f"  ✅  {item_type} / {brand} → {path}")
+                ok += 1
+            except Exception as e:
+                print(f"  ❌  {item_type} / {brand} — {e}")
+                fail += 1
+
+            # цветовые коллажи (не для байков)
+            if item_type != "bike":
+                raw_items = await db.get_items_for_collage(item_type, brand)
+                model_getter = {
+                    "helmet": db.get_helmet_models,
+                    "jacket": db.get_jacket_models,
+                    "suit":   db.get_suit_models,
+                    "glove":  db.get_glove_models,
+                    "boot":   db.get_boot_models,
+                }[item_type]
+                models = await model_getter(brand)
+                for model in models:
+                    try:
+                        path = await get_or_build_color_collage(item_type, brand, model.id, model.model)
+                        print(f"  ✅  {item_type} / {brand} / {model.model} colors → {path}")
+                        ok += 1
+                    except Exception as e:
+                        print(f"  ❌  {item_type} / {brand} / {model.model} colors — {e}")
+                        fail += 1
+
+    print(f"\nГотово: {ok} создано, {fail} ошибок.")
+
+
+def main():
+    import argparse
+    import asyncio
+
+    parser = argparse.ArgumentParser(description="Генерация коллажей экипировки и байков")
+    parser.add_argument(
+        "--type",
+        choices=["bike", "helmet", "jacket", "suit", "glove", "boot"],
+        help="Тип каталога (по умолчанию — все)",
+    )
+    parser.add_argument("--brand", help="Фильтр по бренду (частичное совпадение)")
+    parser.add_argument("--force", action="store_true", help="Пересоздать даже существующие (чистит кеш)")
+    args = parser.parse_args()
+
+    asyncio.run(run_collage_batch(args.type, args.brand, args.force))
+
+
+if __name__ == "__main__":
+    main()

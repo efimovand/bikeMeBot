@@ -7,9 +7,6 @@
     python make_silhouettes.py                   # все байки из БД
     python make_silhouettes.py --brand Honda     # только Honda
     python make_silhouettes.py --force           # пересоздать существующие
-
-Зависимости:
-    pip install "rembg[gpu]" pillow numpy
 """
 
 import argparse
@@ -94,7 +91,7 @@ def make_silhouette(
     x = (card_size[0] - sil.width)  // 2
     y = (card_size[1] - sil.height) // 2
     canvas.paste(sil, (x, y), sil)
-    canvas.save(output_path, "JPEG", quality=95, optimize=True)
+    canvas.save(output_path, "JPEG", quality=95)
 
     return output_path.resolve()
 
