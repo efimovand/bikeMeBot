@@ -266,7 +266,7 @@ async def get_bike_colors(bike_id: int) -> list[BikeColor]:
         result = await session.execute(
             select(BikeColor)
             .where((BikeColor.bike_id == bike_id) | (BikeColor.bike_id.is_(None)))
-            .order_by(BikeColor.name)
+            .order_by(BikeColor.id)
         )
         return list(result.scalars().all())
 
@@ -312,7 +312,7 @@ async def get_helmet_brands() -> list[str]:
 async def get_helmet_models(brand: str) -> list[Helmet]:
     async with get_session() as session:
         result = await session.execute(
-            select(Helmet).where(Helmet.brand == brand).order_by(Helmet.id)
+            select(Helmet).where(Helmet.brand == brand).order_by(Helmet.model)
         )
         return list(result.scalars().all())
 
@@ -377,7 +377,7 @@ async def get_jacket_brands() -> list[str]:
 async def get_jacket_models(brand: str) -> list[Jacket]:
     async with get_session() as session:
         result = await session.execute(
-            select(Jacket).where(Jacket.brand == brand).order_by(Jacket.id)
+            select(Jacket).where(Jacket.brand == brand).order_by(Jacket.model)
         )
         return list(result.scalars().all())
 
@@ -449,7 +449,7 @@ async def get_suit_brands() -> list[str]:
 async def get_suit_models(brand: str) -> list[Suit]:
     async with get_session() as session:
         result = await session.execute(
-            select(Suit).where(Suit.brand == brand).order_by(Suit.id)
+            select(Suit).where(Suit.brand == brand).order_by(Suit.model)
         )
         return list(result.scalars().all())
 
@@ -521,7 +521,7 @@ async def get_glove_brands() -> list[str]:
 async def get_glove_models(brand: str) -> list[Glove]:
     async with get_session() as session:
         result = await session.execute(
-            select(Glove).where(Glove.brand == brand).order_by(Glove.id)
+            select(Glove).where(Glove.brand == brand).order_by(Glove.model)
         )
         return list(result.scalars().all())
 
@@ -593,7 +593,7 @@ async def get_boot_brands() -> list[str]:
 async def get_boot_models(brand: str) -> list[Boot]:
     async with get_session() as session:
         result = await session.execute(
-            select(Boot).where(Boot.brand == brand).order_by(Boot.id)
+            select(Boot).where(Boot.brand == brand).order_by(Boot.model)
         )
         return list(result.scalars().all())
 
@@ -799,7 +799,7 @@ async def _get_bike_items_for_collage(brand: str):
             select(Bike)
             .where(Bike.brand == brand)
             .options(selectinload(Bike.files))
-            .order_by(Bike.id)
+            .order_by(Bike.model)
         )
         bikes = list(result.scalars().all())
 
@@ -926,11 +926,11 @@ async def get_items_for_collage(item_type: str, brand: str) -> list[tuple[str, s
         return await _get_bike_items_for_collage(brand)
 
     model_map = {
-        "helmet": (Helmet, HelmetFile, Helmet.id),
-        "jacket": (Jacket, JacketFile, Jacket.id),
-        "suit": (Suit, SuitFile, Suit.id),
-        "glove": (Glove, GloveFile, Glove.id),
-        "boot": (Boot, BootFile, Boot.id),
+        "helmet": (Helmet, HelmetFile, Helmet.model),
+        "jacket": (Jacket, JacketFile, Jacket.model),
+        "suit": (Suit, SuitFile, Suit.model),
+        "glove": (Glove, GloveFile, Glove.model),
+        "boot": (Boot, BootFile, Boot.model),
     }
     Model, FileModel, order_col = model_map[item_type]
 
