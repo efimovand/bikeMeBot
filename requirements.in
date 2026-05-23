@@ -1,0 +1,11 @@
+aiogram
+pydantic-settings
+SQLAlchemy
+alembic
+asyncpg
+psycopg2-binary
+aiohttp-socks
+Pillow
+numpy
+opencv-python-headless
+rembg[gpu]
