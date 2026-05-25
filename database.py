@@ -1,4 +1,5 @@
 import logging
+import random
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -940,7 +941,7 @@ async def get_items_for_collage(item_type: str, brand: str) -> list[tuple[str, s
                     if f.color_id == 1:
                         return f.file
                 return files[0].file
-            return files[0].file
+            return random.choice(files).file
 
         return [(r.model, pick_file(r.files)) for r in rows]
 
