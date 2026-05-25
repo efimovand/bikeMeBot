@@ -7,12 +7,27 @@ BASE_DIR = Path(__file__).resolve().parent
 INVITED_USERS_FILE = BASE_DIR / "invited_users.json"
 
 
+# Кеш invited_users инвалидируется при изменении mtime файла —
+# редактирование файла на диске подхватится автоматически без рестарта бота.
+_invited_users_cache: tuple[frozenset[int], float] | None = None
+
+
 def load_invited_users() -> set[int]:
+    global _invited_users_cache
+
     if not INVITED_USERS_FILE.exists():
+        _invited_users_cache = None
         return set()
+
+    mtime = INVITED_USERS_FILE.stat().st_mtime
+    if _invited_users_cache is not None and _invited_users_cache[1] == mtime:
+        return set(_invited_users_cache[0])
+
     try:
         data = json.loads(INVITED_USERS_FILE.read_text(encoding="utf-8"))
-        return {int(uid) for uid in data}
+        users = frozenset(int(uid) for uid in data)
+        _invited_users_cache = (users, mtime)
+        return set(users)
     except Exception:
         return set()
 

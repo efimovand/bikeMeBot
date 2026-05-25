@@ -11,7 +11,6 @@ import aiohttp
 from config import settings
 
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger(__name__)
 
 API_UPLOAD = "https://kieai.redpandaai.co/api/file-base64-upload"
@@ -23,12 +22,28 @@ BASE_DIR = Path(settings.media_dir)
 
 
 # ---------------------------------------------------------------------------
-# HTTP-сессия
+# HTTP-сессия (singleton, переиспользуется на весь lifetime бота)
 # ---------------------------------------------------------------------------
 
-def make_session() -> aiohttp.ClientSession:
-    timeout = aiohttp.ClientTimeout(total=120, connect=30)
-    return aiohttp.ClientSession(timeout=timeout)
+_http_session: aiohttp.ClientSession | None = None
+
+
+def get_http_session() -> aiohttp.ClientSession:
+    """Лениво создаёт ClientSession и переиспользует его.
+    Создание ClientSession синхронно — race-condition-safe в одном event loop."""
+    global _http_session
+    if _http_session is None or _http_session.closed:
+        timeout = aiohttp.ClientTimeout(total=120, connect=30)
+        _http_session = aiohttp.ClientSession(timeout=timeout)
+    return _http_session
+
+
+async def close_http_session() -> None:
+    """Закрыть HTTP-сессию (вызывается при shutdown бота)."""
+    global _http_session
+    if _http_session is not None and not _http_session.closed:
+        await _http_session.close()
+        _http_session = None
 
 
 # ---------------------------------------------------------------------------
@@ -75,14 +90,14 @@ async def upload_files(
     items: list[...],
     api_key: str,
 ) -> list[str]:
-    async with make_session() as s:
-        tasks = [
-            upload_file(s, path, api_key, name)
-            for path, name in (
-                (i if isinstance(i, tuple) else (i, None)) for i in items
-            )
-        ]
-        return await asyncio.gather(*tasks)
+    s = get_http_session()
+    tasks = [
+        upload_file(s, path, api_key, name)
+        for path, name in (
+            (i if isinstance(i, tuple) else (i, None)) for i in items
+        )
+    ]
+    return await asyncio.gather(*tasks)
 
 
 # ---------------------------------------------------------------------------
@@ -105,31 +120,31 @@ async def create_task(
     resolution: str = "1K",
     output_format: str = "jpg",
 ) -> str:
-    async with make_session() as s:
-        async with s.post(
-            API_CREATE,
-            proxy=PROXY,
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
-            json={
-                "model": "nano-banana-2",
-                "input": {
-                    "prompt": prompt,
-                    "image_input": image_urls,
-                    "aspect_ratio": aspect_ratio,
-                    "resolution": resolution,
-                    "output_format": output_format,
-                },
+    s = get_http_session()
+    async with s.post(
+        API_CREATE,
+        proxy=PROXY,
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
+        json={
+            "model": "nano-banana-2",
+            "input": {
+                "prompt": prompt,
+                "image_input": image_urls,
+                "aspect_ratio": aspect_ratio,
+                "resolution": resolution,
+                "output_format": output_format,
             },
-        ) as resp:
-            data = await resp.json()
-            logger.info("CreateTask response: %s", data)
-            if data.get("code") == 402:
-                raise InsufficientCreditsError()
-            if resp.status != 200 or data.get("code") != 200:
-                raise RuntimeError(f"CreateTask failed: {data}")
-            task_id = data["data"]["taskId"]
-            logger.info("Task created: %s", task_id)
-            return task_id
+        },
+    ) as resp:
+        data = await resp.json()
+        logger.info("CreateTask response: %s", data)
+        if data.get("code") == 402:
+            raise InsufficientCreditsError()
+        if resp.status != 200 or data.get("code") != 200:
+            raise RuntimeError(f"CreateTask failed: {data}")
+        task_id = data["data"]["taskId"]
+        logger.info("Task created: %s", task_id)
+        return task_id
 
 
 # ---------------------------------------------------------------------------
@@ -137,37 +152,37 @@ async def create_task(
 # ---------------------------------------------------------------------------
 
 async def poll_until_done(task_id: str, api_key: str, interval: int = 10) -> list[str]:
-    async with make_session() as s:
-        while True:
-            async with s.get(
-                API_STATUS,
-                proxy=PROXY,
-                headers={"Authorization": f"Bearer {api_key}"},
-                params={"taskId": task_id},
-            ) as resp:
-                data = await resp.json()
+    s = get_http_session()
+    while True:
+        async with s.get(
+            API_STATUS,
+            proxy=PROXY,
+            headers={"Authorization": f"Bearer {api_key}"},
+            params={"taskId": task_id},
+        ) as resp:
+            data = await resp.json()
 
-            state = (data.get("data") or {}).get("state", "unknown")
-            logger.info("State: %s", state)
+        state = (data.get("data") or {}).get("state", "unknown")
+        logger.info("State: %s", state)
 
-            if state in ("waiting", "queuing", "generating"):
-                await asyncio.sleep(interval)
-                continue
-            if state == "fail":
-                fail_msg = (data.get("data") or {}).get("failMsg", "")
-                if "filtered out" in fail_msg or "Prohibited Use policy" in fail_msg:
-                    raise ContentPolicyError()
-                raise RuntimeError(f"Generation failed: {fail_msg}")
-            if state == "success":
-                result_json = json.loads(
-                    (data.get("data") or {}).get("resultJson") or "{}"
-                )
-                urls = result_json.get("resultUrls") or []
-                if not urls:
-                    raise RuntimeError("No resultUrls in response")
-                return urls
+        if state in ("waiting", "queuing", "generating"):
+            await asyncio.sleep(interval)
+            continue
+        if state == "fail":
+            fail_msg = (data.get("data") or {}).get("failMsg", "")
+            if "filtered out" in fail_msg or "Prohibited Use policy" in fail_msg:
+                raise ContentPolicyError()
+            raise RuntimeError(f"Generation failed: {fail_msg}")
+        if state == "success":
+            result_json = json.loads(
+                (data.get("data") or {}).get("resultJson") or "{}"
+            )
+            urls = result_json.get("resultUrls") or []
+            if not urls:
+                raise RuntimeError("No resultUrls in response")
+            return urls
 
-            raise RuntimeError(f"Unexpected state: {state}")
+        raise RuntimeError(f"Unexpected state: {state}")
 
 
 # ---------------------------------------------------------------------------
@@ -228,10 +243,10 @@ async def generate_for_user(
     output_dir.mkdir(parents=True, exist_ok=True)
     out_path = output_dir / f"result_{generation_id}.jpg"
 
-    async with make_session() as s:
-        async with s.get(result_urls[0], proxy=PROXY) as resp:
-            resp.raise_for_status()
-            out_path.write_bytes(await resp.read())
+    s = get_http_session()
+    async with s.get(result_urls[0], proxy=PROXY) as resp:
+        resp.raise_for_status()
+        out_path.write_bytes(await resp.read())
 
     logger.info("Generation %s saved to %s", generation_id, out_path)
     return out_path

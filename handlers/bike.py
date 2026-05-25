@@ -12,7 +12,7 @@ from keyboards import (
     bike_models_keyboard, brands_keyboard, main_menu_keyboard,
 )
 from states import BikeStates, OnboardingStates
-from utils import config_text, safe_delete, safe_delete_by_id
+from utils import config_text, safe_delete
 from database import photoset_is_complete
 
 router = Router()

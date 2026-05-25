@@ -122,15 +122,7 @@ async def run_generation(message_or_query, tg_id: int):
 
     user = await db.get_user_by_tg_id(tg_id)
 
-    prompt = await make_final_prompt(
-        bike_file_id=user.bike_file_id,
-        location_id=user.location_id,
-        helmet_file_id=user.helmet_file_id,
-        jacket_file_id=user.jacket_file_id,
-        suit_file_id=user.suit_file_id,
-        glove_file_id=user.glove_file_id,
-        boot_file_id=user.boot_file_id,
-    )
+    prompt = await make_final_prompt(user)
 
     # TODO: убрать после тестов (промпт + пути)
     if tg_id == 370377802:

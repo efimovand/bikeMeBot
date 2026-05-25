@@ -9,7 +9,7 @@ from keyboards import (
     MenuCallback, brands_keyboard, jacket_colors_keyboard,
     jacket_models_keyboard, main_menu_keyboard,
 )
-from states import JacketStates, OnboardingStates, PhotoStates
+from states import JacketStates, OnboardingStates
 from utils import config_text, safe_delete, safe_delete_by_id
 from database import photoset_is_complete
 

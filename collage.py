@@ -86,11 +86,16 @@ def load_image(path: str) -> Image.Image:
     if path.startswith("http"):
         headers = {"User-Agent": "Mozilla/5.0 CollageGenerator/1.0"}
         resp = requests.get(path, timeout=10, headers=headers)
-        return Image.open(BytesIO(resp.content))
+        with Image.open(BytesIO(resp.content)) as img:
+            img.load()
+            return img.copy()
     full_path = BASE_DIR / Path(path)
     if not full_path.exists():
         raise FileNotFoundError(f"Not found: {full_path}")
-    return Image.open(full_path)
+    # Закрываем file handle сразу — копируем в память
+    with Image.open(full_path) as img:
+        img.load()
+        return img.copy()
 
 
 # RENDER HELPERS

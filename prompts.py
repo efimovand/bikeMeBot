@@ -1,97 +1,111 @@
+import asyncio
 import database as db
+from models import User
 
 
-async def make_final_prompt(
-    bike_file_id: int,
-    location_id: int | None = None,
-    helmet_file_id: int | None = None,
-    jacket_file_id: int | None = None,
-    suit_file_id: int | None = None,
-    glove_file_id: int | None = None,
-    boot_file_id: int | None = None,
-) -> str:
-    # --- Байк + локация ---
-    bike_file = await db.get_bike_file_by_id(bike_file_id)
-    raw_bike_prompt = bike_file.bike.prompt
+_NO_HELMET = "IMPORTANT: The person must be shown without any helmet, with their head completely bare."
+_NO_JACKET = "IMPORTANT: The person must be shown in their own clothing — no motorcycle jacket or suit."
+_NO_GLOVE = "IMPORTANT: The person must be shown without motorcycle gloves, bare hands."
+_NO_BOOT = "IMPORTANT: The person must be shown without motorcycle boots, in their own footwear."
 
-    if location_id is not None:
-        location = await db.get_location_by_id(location_id)
-        location_prompt = location.prompt if location else bike_file.bike.location.prompt
+
+def _format_dict_prompt(prompts: list, key: str, raw: str | None) -> str:
+    """Безопасно применить шаблон из dictionary_prompt. Если нет — пустая строка."""
+    if not prompts:
+        return ""
+    return prompts[0].text.format(**{key: raw or ""})
+
+
+async def make_final_prompt(user: User) -> str:
+    """Собрать финальный промпт для генерации.
+
+    user должен быть загружен через `get_user_by_tg_id` — со всеми selectinload-ами
+    из `_USER_OPTIONS`, чтобы доступ к user.bike_file.bike.prompt и т.д. не лазал в БД.
+    """
+    # --- Параллельно подтягиваем нужные шаблоны из dictionary_prompt ---
+    needed_types: list[str] = ["default"]
+    if user.helmet_file is not None:
+        needed_types.append("helmet")
+    if user.jacket_file is not None:
+        needed_types.append("jacket")
+    if user.suit_file is not None:
+        needed_types.append("suit")
+    if user.glove_file is not None:
+        needed_types.append("glove")
+    if user.boot_file is not None:
+        needed_types.append("boot")
+
+    fetched = await asyncio.gather(*[db.get_prompts_by_type(t) for t in needed_types])
+    dict_prompts: dict[str, list] = dict(zip(needed_types, fetched))
+
+    # --- Байк + локация (всё уже эагерно загружено в user) ---
+    raw_bike_prompt = user.bike_file.bike.prompt
+    if user.location is not None:
+        location_prompt = user.location.prompt
     else:
-        location_prompt = bike_file.bike.location.prompt
-
+        location_prompt = user.bike_file.bike.location.prompt
     bike_prompt = f"Motorcycle ergonomics and scale: {raw_bike_prompt}" if raw_bike_prompt else ""
 
-    # --- Шлем (опционально) ---
-    has_helmet = helmet_file_id is not None
-    helmet_prompt = "IMPORTANT: The person must be shown without any helmet, with their head completely bare." if not has_helmet else ""
-    if has_helmet:
-        helmet_file = await db.get_helmet_file_by_id(helmet_file_id)
-        raw_helmet_prompt = helmet_file.helmet.prompt
-        helmet_dict_prompts = await db.get_prompts_by_type("helmet")
-        helmet_dict_text = helmet_dict_prompts[0].text
-        helmet_prompt = helmet_dict_text.format(helmet_prompt=raw_helmet_prompt) if raw_helmet_prompt else helmet_dict_text.format(helmet_prompt="")
+    # --- Шлем ---
+    if user.helmet_file is not None:
+        helmet_prompt = _format_dict_prompt(
+            dict_prompts.get("helmet", []),
+            "helmet_prompt",
+            user.helmet_file.helmet.prompt,
+        )
+    else:
+        helmet_prompt = _NO_HELMET
 
     # --- Куртка / Комбинезон (взаимоисключающие) ---
-    has_jacket = jacket_file_id is not None
-    has_suit = suit_file_id is not None
-
-    if has_jacket:
-        jacket_file = await db.get_jacket_file_by_id(jacket_file_id)
-        raw_jacket_prompt = jacket_file.jacket.prompt
-        jacket_dict_prompts = await db.get_prompts_by_type("jacket")
-        jacket_dict_text = jacket_dict_prompts[0].text
-        jacket_prompt = jacket_dict_text.format(
-            jacket_prompt=raw_jacket_prompt) if raw_jacket_prompt else jacket_dict_text.format(jacket_prompt="")
+    if user.jacket_file is not None:
+        jacket_prompt = _format_dict_prompt(
+            dict_prompts.get("jacket", []),
+            "jacket_prompt",
+            user.jacket_file.jacket.prompt,
+        )
         suit_prompt = ""
-
-    elif has_suit:
-        suit_file = await db.get_suit_file_by_id(suit_file_id)
-        raw_suit_prompt = suit_file.suit.prompt
-        suit_dict_prompts = await db.get_prompts_by_type("suit")
-        suit_dict_text = suit_dict_prompts[0].text
-        suit_prompt = suit_dict_text.format(suit_prompt=raw_suit_prompt) if raw_suit_prompt else suit_dict_text.format(
-            suit_prompt="")
+    elif user.suit_file is not None:
+        suit_prompt = _format_dict_prompt(
+            dict_prompts.get("suit", []),
+            "suit_prompt",
+            user.suit_file.suit.prompt,
+        )
         jacket_prompt = ""
-
     else:
-        jacket_prompt = "IMPORTANT: The person must be shown in their own clothing — no motorcycle jacket or suit."
+        jacket_prompt = _NO_JACKET
         suit_prompt = ""
 
-    # --- Перчатки (опционально) ---
-    has_glove = glove_file_id is not None
-    glove_prompt = "IMPORTANT: The person must be shown without motorcycle gloves, bare hands." if not has_glove else ""
-    if has_glove:
-        glove_file = await db.get_glove_file_by_id(glove_file_id)
-        raw_glove_prompt = glove_file.glove.prompt
-        glove_dict_prompts = await db.get_prompts_by_type("glove")
-        glove_dict_text = glove_dict_prompts[0].text
-        glove_prompt = glove_dict_text.format(glove_prompt=raw_glove_prompt) if raw_glove_prompt else glove_dict_text.format(glove_prompt="")
+    # --- Перчатки ---
+    if user.glove_file is not None:
+        glove_prompt = _format_dict_prompt(
+            dict_prompts.get("glove", []),
+            "glove_prompt",
+            user.glove_file.glove.prompt,
+        )
+    else:
+        glove_prompt = _NO_GLOVE
 
-    # --- Ботинки (опционально) ---
-    has_boot = boot_file_id is not None
-    boot_prompt = "IMPORTANT: The person must be shown without motorcycle boots, in their own footwear." if not has_boot else ""
-    if has_boot:
-        boot_file = await db.get_boot_file_by_id(boot_file_id)
-        raw_boot_prompt = boot_file.boot.prompt
-        boot_dict_prompts = await db.get_prompts_by_type("boot")
-        boot_dict_text = boot_dict_prompts[0].text
-        boot_prompt = boot_dict_text.format(boot_prompt=raw_boot_prompt) if raw_boot_prompt else boot_dict_text.format(boot_prompt="")
+    # --- Ботинки ---
+    if user.boot_file is not None:
+        boot_prompt = _format_dict_prompt(
+            dict_prompts.get("boot", []),
+            "boot_prompt",
+            user.boot_file.boot.prompt,
+        )
+    else:
+        boot_prompt = _NO_BOOT
 
     # --- Финальный промпт ---
-    helmet_photo_mention = ", a photo of a motorcycle helmet" if has_helmet else ""
-    jacket_photo_mention = ", a photo of a motorcycle jacket" if has_jacket else ""
-    suit_photo_mention = ", a photo of a motorcycle suit" if has_suit else ""
-    glove_photo_mention = ", a photo of motorcycle gloves" if has_glove else ""
-    boot_photo_mention = ", a photo of motorcycle boots" if has_boot else ""
+    default_prompts = dict_prompts.get("default", [])
+    if not default_prompts:
+        raise RuntimeError("No 'default' prompt in dictionary_prompt — cannot build final prompt")
 
-    default = await db.get_default_prompt()
-    final_prompt = default.text.format(
-        helmet_photo_mention=helmet_photo_mention,
-        jacket_photo_mention=jacket_photo_mention,
-        suit_photo_mention=suit_photo_mention,
-        glove_photo_mention=glove_photo_mention,
-        boot_photo_mention=boot_photo_mention,
+    return default_prompts[0].text.format(
+        helmet_photo_mention=", a photo of a motorcycle helmet" if user.helmet_file is not None else "",
+        jacket_photo_mention=", a photo of a motorcycle jacket" if user.jacket_file is not None else "",
+        suit_photo_mention=", a photo of a motorcycle suit" if user.suit_file is not None else "",
+        glove_photo_mention=", a photo of motorcycle gloves" if user.glove_file is not None else "",
+        boot_photo_mention=", a photo of motorcycle boots" if user.boot_file is not None else "",
         bike_prompt=bike_prompt,
         location_prompt=location_prompt,
         helmet_prompt=helmet_prompt,
@@ -100,5 +114,3 @@ async def make_final_prompt(
         glove_prompt=glove_prompt,
         boot_prompt=boot_prompt,
     )
-
-    return final_prompt

@@ -1,7 +1,7 @@
-import random
+import logging
+import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from random import choice
 from config import settings
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -19,6 +19,9 @@ from models import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 # ---------------------------------------------------------------------------
 # Engine / session
 # ---------------------------------------------------------------------------
@@ -26,8 +29,10 @@ from models import (
 engine = create_async_engine(
     settings.database_url,
     echo=False,
-    pool_size=10,
+    pool_size=20,
     max_overflow=20,
+    pool_pre_ping=True,     # валидировать соединение перед использованием
+    pool_recycle=3600,      # рециклировать коннекты старше часа
 )
 
 SessionLocal = async_sessionmaker(
@@ -78,6 +83,15 @@ async def get_user_by_tg_id(tg_id: int) -> User | None:
         return result.scalar_one_or_none()
 
 
+async def get_user_minimal(tg_id: int) -> User | None:
+    """Чтение юзера без relations — для случаев, когда нужны только скаляры (balance, *_id)."""
+    async with get_session() as session:
+        result = await session.execute(
+            select(User).where(User.tg_id == tg_id)
+        )
+        return result.scalar_one_or_none()
+
+
 async def get_or_create_user(tg_id: int, name: str | None = None) -> tuple[User, bool]:
     async with get_session() as session:
         result = await session.execute(
@@ -91,27 +105,6 @@ async def get_or_create_user(tg_id: int, name: str | None = None) -> tuple[User,
         session.add(user)
         await session.flush()
         return user, True
-
-
-async def update_user_profile(
-    tg_id: int,
-    name: str | None = None,
-    phone: str | None = None,
-    city: str | None = None,
-) -> None:
-    values: dict = {}
-    if name is not None:
-        values["name"] = name
-    if phone is not None:
-        values["phone"] = phone
-    if city is not None:
-        values["city"] = city
-    if not values:
-        return
-    async with get_session() as session:
-        await session.execute(
-            update(User).where(User.tg_id == tg_id).values(**values)
-        )
 
 
 async def update_user_bike_file(tg_id: int, bike_file_id: int) -> None:
@@ -152,12 +145,19 @@ async def add_balance(tg_id: int, amount: int) -> int:
 
 
 async def decrement_balance(tg_id: int) -> int:
+    """Атомарно уменьшает баланс на 1, не допуская отрицательных значений.
+    Возвращает текущий баланс пользователя после операции."""
     async with get_session() as session:
-        await session.execute(
+        result = await session.execute(
             update(User)
-            .where(User.tg_id == tg_id)
+            .where(User.tg_id == tg_id, User.balance > 0)
             .values(balance=User.balance - 1)
+            .returning(User.balance)
         )
+        new_balance = result.scalar_one_or_none()
+        if new_balance is not None:
+            return new_balance
+        # Баланс был уже 0 — возвращаем текущее значение
         result = await session.execute(
             select(User.balance).where(User.tg_id == tg_id)
         )
@@ -657,10 +657,12 @@ async def clear_user_boot_file(tg_id: int) -> None:
 async def get_active_account() -> Account | None:
     async with get_session() as session:
         result = await session.execute(
-            select(Account).where(Account.is_active == True)  # noqa: E712
+            select(Account)
+            .where(Account.is_active == True)  # noqa: E712
+            .order_by(func.random())
+            .limit(1)
         )
-        accounts = list(result.scalars().all())
-        return choice(accounts) if accounts else None
+        return result.scalar_one_or_none()
 
 
 async def deactivate_account(account_id: int) -> None:
@@ -668,7 +670,6 @@ async def deactivate_account(account_id: int) -> None:
         await session.execute(
             update(Account).where(Account.id == account_id).values(is_active=False)
         )
-        await session.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -711,53 +712,59 @@ async def update_generation_status(generation_id: int, status: str) -> None:
         )
 
 
-async def get_user_generations(user_id: int, limit: int = 10) -> list[Generation]:
+async def reset_pending_generations() -> int:
+    """На старте бота: помечает все pending генерации как failed.
+    Возвращает количество затронутых строк."""
     async with get_session() as session:
         result = await session.execute(
-            select(Generation)
-            .where(Generation.user_id == user_id)
-            .order_by(Generation.created_date.desc())
-            .limit(limit)
+            update(Generation)
+            .where(Generation.status == "pending")
+            .values(status="failed", updated_date=func.now())
         )
-        return list(result.scalars().all())
+        return result.rowcount or 0
 
 
 async def get_catalog_counts() -> dict[str, int]:
     async with get_session() as session:
-        counts = {}
-        for name, Model in [
-            ("bikes", Bike),
-            ("helmets", Helmet),
-            ("jackets", Jacket),
-            ("suits", Suit),
-            ("gloves", Glove),
-            ("boots", Boot),
-        ]:
-            result = await session.execute(select(func.count(Model.id)))
-            counts[name] = result.scalar_one()
-        return counts
+        result = await session.execute(
+            select(
+                select(func.count(Bike.id)).scalar_subquery().label("bikes"),
+                select(func.count(Helmet.id)).scalar_subquery().label("helmets"),
+                select(func.count(Jacket.id)).scalar_subquery().label("jackets"),
+                select(func.count(Suit.id)).scalar_subquery().label("suits"),
+                select(func.count(Glove.id)).scalar_subquery().label("gloves"),
+                select(func.count(Boot.id)).scalar_subquery().label("boots"),
+            )
+        )
+        return dict(result.one()._mapping)
 
 
 # ---------------------------------------------------------------------------
-# DictionaryPrompt
+# DictionaryPrompt (TTL-кеш, чтобы правки админа подхватывались за TTL секунд)
 # ---------------------------------------------------------------------------
+
+_DICT_PROMPTS_TTL = 60.0  # секунд
+_dict_prompts_cache: dict[str, tuple[list[DictionaryPrompt], float]] = {}
+
 
 async def get_prompts_by_type(type: str) -> list[DictionaryPrompt]:
+    now = time.monotonic()
+    cached = _dict_prompts_cache.get(type)
+    if cached and now - cached[1] < _DICT_PROMPTS_TTL:
+        return cached[0]
+
     async with get_session() as session:
         result = await session.execute(
             select(DictionaryPrompt).where(DictionaryPrompt.type == type)
         )
-        return list(result.scalars().all())
+        prompts = list(result.scalars().all())
+    _dict_prompts_cache[type] = (prompts, now)
+    return prompts
 
 
 async def get_default_prompt() -> DictionaryPrompt | None:
-    async with get_session() as session:
-        result = await session.execute(
-            select(DictionaryPrompt)
-            .where(DictionaryPrompt.type == "default")
-            .limit(1)
-        )
-        return result.scalar_one_or_none()
+    prompts = await get_prompts_by_type("default")
+    return prompts[0] if prompts else None
 
 
 # ---------------------------------------------------------------------------
@@ -769,28 +776,10 @@ def _find_silhouette(model_dir, model_slug: str):
     return candidate if candidate.exists() else None
 
 
-def _generate_silhouette(source_path, out_path):
-    import os
-    import subprocess
-    import sys
-    from pathlib import Path
-
-    script = Path(__file__).parent / "make_silhouettes.py"
-    env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
-    result = subprocess.run(
-        [sys.executable, str(script), "--single", str(source_path)],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        env=env,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or result.stdout.strip())
-    return out_path if out_path.exists() else None
-
-
 async def _get_bike_items_for_collage(brand: str):
-    import asyncio
+    """Собирает (model_name, silhouette_path_or_none) для коллажа бренда байков.
+    Силуэты должны быть пре-сгенерированы через `python make_silhouettes.py`.
+    Если силуэт отсутствует — байк попадёт в коллаж без картинки + warning в лог."""
     from pathlib import Path
     from config import settings
 
@@ -804,7 +793,6 @@ async def _get_bike_items_for_collage(brand: str):
         bikes = list(result.scalars().all())
 
     base_dir = Path(settings.media_dir)
-    loop = asyncio.get_running_loop()
     items = []
 
     for bike in bikes:
@@ -818,17 +806,14 @@ async def _get_bike_items_for_collage(brand: str):
 
         silhouette = _find_silhouette(model_dir, model_slug)
         if silhouette is None:
-            out = model_dir / f"{model_slug}_silhouette.jpg"
-            if file_path.exists():
-                try:
-                    silhouette = await loop.run_in_executor(
-                        None, _generate_silhouette, file_path, out
-                    )
-                except Exception as e:
-                    print(f"[collage] Silhouette generation failed for {brand} {bike.model}: {e}")
+            logger.warning(
+                "Missing silhouette for %s %s — run `python make_silhouettes.py` to generate.",
+                brand, bike.model,
+            )
+            items.append((bike.model, None))
+            continue
 
-        rel = str(silhouette.relative_to(base_dir)) if silhouette else None
-        items.append((bike.model, rel))
+        items.append((bike.model, str(silhouette.relative_to(base_dir))))
 
     return items
 
@@ -836,6 +821,11 @@ async def _get_bike_items_for_collage(brand: str):
 # Collage
 # ---------------------------------------------------------------------------
 
+# NOTE: кеш коллажей инвалидируется только по изменению COUNT(*) моделей в бренде.
+# Если ровно один айтем удалён и ровно один добавлен (count тот же), кеш останется
+# протухшим. После таких ручных правок в БД админу нужно прогнать
+# `python collage.py --force` для пересборки. Полноценный фикс потребует миграции
+# (добавить max_id/signature в таблицу collage).
 async def get_brand_collage_state(type: str, brand: str):
     model_map = {
         "bike": Bike,

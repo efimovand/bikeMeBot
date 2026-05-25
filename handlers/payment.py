@@ -1,6 +1,4 @@
 from aiogram import F, Router
-from aiogram.filters import Filter
-from aiogram.fsm.context import FSMContext
 from aiogram.types import (
     CallbackQuery,
     InlineKeyboardMarkup,
@@ -108,7 +106,7 @@ async def on_successful_payment(message: Message):
     except ValueError:
         return
 
-    await db.add_balance(message.from_user.id, gens)
+    new_balance = await db.add_balance(message.from_user.id, gens)
     await db.add_spent_stars(message.from_user.id, stars)
 
     plural = (
@@ -116,11 +114,10 @@ async def on_successful_payment(message: Message):
         else "генерации" if 2 <= gens <= 4
         else "генераций"
     )
-    new_balance = await db.get_user_by_tg_id(message.from_user.id)
 
     await message.answer(
         f"✅ Оплата прошла успешно!\n\n"
         f"Начислено: <b>{gens} {plural}</b>\n"
-        f"Текущий баланс: <b>{new_balance.balance} ⭐️</b>",
+        f"Текущий баланс: <b>{new_balance} ⭐️</b>",
         parse_mode="HTML",
     )

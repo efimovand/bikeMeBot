@@ -1,7 +1,5 @@
-from pathlib import Path
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import Message
-from config import settings
 from models import User
 from database import photoset_is_complete
 
@@ -32,18 +30,8 @@ async def safe_delete_by_id(bot, chat_id: int, message_id: int) -> bool:
         return False
 
 
-BASE_DIR = Path(settings.media_dir)
-
 _config_msg_ids: dict[int, int] = {}
 _photos_just_updated: set[int] = set()
-
-
-def get_media_path(relative_path: str) -> Path:
-    return BASE_DIR / relative_path
-
-
-def read_media_bytes(relative_path: str) -> bytes:
-    return get_media_path(relative_path).read_bytes()
 
 
 def config_text(user: User) -> str:

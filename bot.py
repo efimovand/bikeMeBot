@@ -13,6 +13,12 @@ logging.basicConfig(
 
 
 async def main():
+    # Cleanup осиротевших pending генераций (если бот падал во время генерации).
+    import database as db
+    reset_count = await db.reset_pending_generations()
+    if reset_count:
+        logging.info("Reset %d pending generation(s) to failed on startup", reset_count)
+
     session = AiohttpSession(proxy=settings.proxy_tg_url)
     bot = Bot(token=settings.bot_token, session=session)
 
@@ -30,7 +36,12 @@ async def main():
     dp.include_router(payment.router)
 
     logging.info("Bot started")
-    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+    try:
+        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+    finally:
+        # Закрываем переиспользуемый HTTP-клиент для kie.ai.
+        from kie_ai import close_http_session
+        await close_http_session()
 
 
 if __name__ == "__main__":
