@@ -16,3 +16,5 @@ check_files.py
 .DS_Store
 Thumbs.db
 /invited_users.json
+
+db_dump.sql
