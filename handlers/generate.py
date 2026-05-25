@@ -125,7 +125,8 @@ async def run_generation(message_or_query, tg_id: int):
     prompt = await make_final_prompt(user)
 
     # TODO: убрать после тестов (промпт + пути)
-    if tg_id == 370377802:
+    # if tg_id == 370377802:
+    if False:
         prompt += '\n\nPhoto format: 1:1 square'
         if len(prompt) <= 4080:
             await target.answer(f"<code>{prompt}</code>", parse_mode="HTML")
