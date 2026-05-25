@@ -8,6 +8,7 @@ import database as db
 from handlers.start import send_main_menu
 from kie_ai import generate_for_user, InsufficientCreditsError, ContentPolicyError
 from keyboards import MenuCallback, generate_again_keyboard, no_balance_keyboard, NoBalanceCallback
+from utils import safe_delete
 from prompts import make_final_prompt
 from utils import _config_msg_ids
 
@@ -261,10 +262,7 @@ async def on_main_menu(query: CallbackQuery, state: FSMContext):
 @router.callback_query(NoBalanceCallback.filter(F.action == "topup"))
 async def on_no_balance_topup(query: CallbackQuery, state: FSMContext):
     await query.answer()
-    try:
-        await query.message.delete()
-    except Exception:
-        pass
+    await safe_delete(query.message)
     from handlers.payment import show_topup_screen
     await show_topup_screen(query)
 
@@ -272,7 +270,4 @@ async def on_no_balance_topup(query: CallbackQuery, state: FSMContext):
 @router.callback_query(NoBalanceCallback.filter(F.action == "cancel"))
 async def on_no_balance_cancel(query: CallbackQuery, state: FSMContext):
     await query.answer()
-    try:
-        await query.message.delete()
-    except Exception:
-        pass
+    await safe_delete(query.message)

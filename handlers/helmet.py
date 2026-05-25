@@ -11,7 +11,7 @@ from keyboards import (
     helmet_models_keyboard, main_menu_keyboard,
 )
 from states import HelmetStates, OnboardingStates
-from utils import config_text
+from utils import config_text, safe_delete, safe_delete_by_id
 from database import photoset_is_complete
 
 
@@ -41,7 +41,7 @@ async def on_helmet_brand(query: CallbackQuery, callback_data: HelmetBrandCallba
 
     await state.update_data(brand=brand)
     await state.set_state(HelmetStates.choosing_model)
-    await query.message.delete()
+    await safe_delete(query.message)
 
     photo_msg = await query.message.answer_photo(photo=FSInputFile(collage_path))
     text_msg = await query.message.answer(
@@ -91,12 +91,12 @@ async def on_helmet_model(query: CallbackQuery, callback_data: HelmetModelCallba
 
     collage_msg_id = data.get("collage_msg_id")
     if collage_msg_id:
-        await query.bot.delete_message(query.message.chat.id, collage_msg_id)
+        await safe_delete_by_id(query.bot, query.message.chat.id, collage_msg_id)
 
     color_collage_path = await get_or_build_color_collage(
         "helmet", brand, callback_data.helmet_id, model_name
     )
-    await query.message.delete()
+    await safe_delete(query.message)
 
     photo_msg = await query.message.answer_photo(photo=FSInputFile(color_collage_path))
     text_msg = await query.message.answer(
@@ -124,7 +124,7 @@ async def on_helmet_back_to_model(query: CallbackQuery, state: FSMContext):
     collage_path = await get_or_build_brand_collage("helmet", brand)
 
     await state.set_state(HelmetStates.choosing_model)
-    await query.message.delete()
+    await safe_delete(query.message)
 
     photo_msg = await query.message.answer_photo(photo=FSInputFile(collage_path))
     text_msg = await query.message.answer(
@@ -148,7 +148,7 @@ async def on_helmet_color(query: CallbackQuery, callback_data: HelmetColorCallba
     data = await state.get_data()
     collage_msg_id = data.get("collage_msg_id")
     if collage_msg_id:
-        await query.bot.delete_message(query.message.chat.id, collage_msg_id)
+        await safe_delete_by_id(query.bot, query.message.chat.id, collage_msg_id)
 
     user = await db.get_user_by_tg_id(query.from_user.id)
     onboarding = data.get("onboarding", False)
@@ -188,7 +188,7 @@ async def on_helmet_cancel(query: CallbackQuery, state: FSMContext):
     else:
         from handlers.start import send_main_menu
         user = await db.get_user_by_tg_id(query.from_user.id)
-        await query.message.delete()
+        await safe_delete(query.message)
         await send_main_menu(query.message, user, state)
 
 @router.callback_query(MenuCallback.filter(F.action == "helmet_remove"))

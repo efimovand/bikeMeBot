@@ -10,7 +10,7 @@ from keyboards import (
     jacket_models_keyboard, main_menu_keyboard,
 )
 from states import JacketStates, OnboardingStates, PhotoStates
-from utils import config_text
+from utils import config_text, safe_delete, safe_delete_by_id
 from database import photoset_is_complete
 
 
@@ -45,7 +45,7 @@ async def on_jacket_brand(query: CallbackQuery, callback_data: JacketBrandCallba
 
     await state.update_data(brand=brand)
     await state.set_state(JacketStates.choosing_model)
-    await query.message.delete()
+    await safe_delete(query.message)
 
     photo_msg = await query.message.answer_photo(photo=FSInputFile(collage_path))
     text_msg = await query.message.answer(
@@ -98,12 +98,12 @@ async def on_jacket_model(query: CallbackQuery, callback_data: JacketModelCallba
 
     collage_msg_id = data.get("collage_msg_id")
     if collage_msg_id:
-        await query.bot.delete_message(query.message.chat.id, collage_msg_id)
+        await safe_delete_by_id(query.bot, query.message.chat.id, collage_msg_id)
 
     color_collage_path = await get_or_build_color_collage(
         "jacket", brand, callback_data.jacket_id, model_name
     )
-    await query.message.delete()
+    await safe_delete(query.message)
 
     photo_msg = await query.message.answer_photo(photo=FSInputFile(color_collage_path))
     text_msg = await query.message.answer(
@@ -131,7 +131,7 @@ async def on_jacket_back_to_model(query: CallbackQuery, state: FSMContext):
     collage_path = await get_or_build_brand_collage("jacket", brand)
 
     await state.set_state(JacketStates.choosing_model)
-    await query.message.delete()
+    await safe_delete(query.message)
 
     photo_msg = await query.message.answer_photo(photo=FSInputFile(collage_path))
     text_msg = await query.message.answer(
@@ -155,7 +155,7 @@ async def on_jacket_color(query: CallbackQuery, callback_data: JacketColorCallba
     data = await state.get_data()
     collage_msg_id = data.get("collage_msg_id")
     if collage_msg_id:
-        await query.bot.delete_message(query.message.chat.id, collage_msg_id)
+        await safe_delete_by_id(query.bot, query.message.chat.id, collage_msg_id)
 
     user = await db.get_user_by_tg_id(query.from_user.id)
     onboarding = data.get("onboarding", False)
@@ -180,8 +180,6 @@ async def on_jacket_color(query: CallbackQuery, callback_data: JacketColorCallba
         )
 
 
-
-
 @router.callback_query(BackCallback.filter((F.entity == "jacket") & (F.step == "to_menu")), JacketStates.choosing_brand)
 async def on_jacket_cancel(query: CallbackQuery, state: FSMContext):
     await query.answer()
@@ -195,7 +193,7 @@ async def on_jacket_cancel(query: CallbackQuery, state: FSMContext):
     else:
         from handlers.start import send_main_menu
         user = await db.get_user_by_tg_id(query.from_user.id)
-        await query.message.delete()
+        await safe_delete(query.message)
         await send_main_menu(query.message, user, state)
 
 @router.callback_query(MenuCallback.filter(F.action == "jacket_remove"))

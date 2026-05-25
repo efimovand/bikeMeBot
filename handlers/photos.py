@@ -6,7 +6,7 @@ import database as db
 from config import settings
 from keyboards import MenuCallback, main_menu_keyboard
 from states import PhotoStates
-from utils import config_text, _photos_just_updated
+from utils import config_text, safe_delete, _photos_just_updated
 
 
 router = Router()
@@ -50,10 +50,7 @@ async def _delete_chain(bot: Bot, chat_id: int, msg_ids: list[int]) -> None:
 async def start_photo_upload(query: CallbackQuery, state: FSMContext) -> None:
     """Универсальный старт загрузки фото: удаляет текущее сообщение, шлёт текст + пример."""
     await state.set_state(PhotoStates.waiting_front)
-    try:
-        await query.message.delete()
-    except Exception:
-        pass
+    await safe_delete(query.message)
 
     text_msg = await query.message.answer(
         "📸 <b>Шаг 1 из 3 — Фото анфас</b>\n\n"

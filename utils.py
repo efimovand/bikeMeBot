@@ -1,7 +1,35 @@
 from pathlib import Path
+from aiogram.exceptions import TelegramBadRequest
+from aiogram.types import Message
 from config import settings
 from models import User
 from database import photoset_is_complete
+
+
+async def safe_delete(message: Message) -> bool:
+    """Delete message; if forbidden (>48h), clear its keyboard instead."""
+    try:
+        await message.delete()
+        return True
+    except TelegramBadRequest:
+        try:
+            await message.edit_reply_markup(reply_markup=None)
+        except TelegramBadRequest:
+            pass
+        return False
+
+
+async def safe_delete_by_id(bot, chat_id: int, message_id: int) -> bool:
+    """Delete message by id; if forbidden, clear its keyboard instead."""
+    try:
+        await bot.delete_message(chat_id, message_id)
+        return True
+    except TelegramBadRequest:
+        try:
+            await bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=None)
+        except TelegramBadRequest:
+            pass
+        return False
 
 
 BASE_DIR = Path(settings.media_dir)

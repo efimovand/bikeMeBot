@@ -12,7 +12,7 @@ from keyboards import (
     bike_models_keyboard, brands_keyboard, main_menu_keyboard,
 )
 from states import BikeStates, OnboardingStates
-from utils import config_text
+from utils import config_text, safe_delete, safe_delete_by_id
 from database import photoset_is_complete
 
 router = Router()
@@ -41,7 +41,7 @@ async def on_bike_brand(query: CallbackQuery, callback_data: BikeBrandCallback, 
 
     await state.update_data(brand=brand)
     await state.set_state(BikeStates.choosing_model)
-    await query.message.delete()
+    await safe_delete(query.message)
 
     photo_msg = await query.message.answer_photo(photo=FSInputFile(collage_path))
     text_msg = await query.message.answer(
@@ -78,7 +78,7 @@ async def on_bike_cancel(query: CallbackQuery, state: FSMContext):
     await query.answer()
     from handlers.start import send_main_menu
     user = await db.get_user_by_tg_id(query.from_user.id)
-    await query.message.delete()
+    await safe_delete(query.message)
     await send_main_menu(query.message, user, state)
 
 
@@ -115,7 +115,7 @@ async def on_bike_back_to_model(query: CallbackQuery, state: FSMContext):
     await state.set_state(BikeStates.choosing_model)
 
     collage_path = await get_or_build_brand_collage("bike", brand)
-    await query.message.delete()
+    await safe_delete(query.message)
 
     photo_msg = await query.message.answer_photo(photo=FSInputFile(collage_path))
     text_msg = await query.message.answer(
