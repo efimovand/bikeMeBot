@@ -23,22 +23,39 @@ import database as db
 BASE_DIR = Path(__file__).resolve().parent / "media"
 
 
+# ============================================================================
+# ДИЗАЙН
+# ============================================================================
+
+# Палитра — Telegram dark theme
+PAGE_BG = (23, 33, 43)              # #17212B — фон чата TG
+CARD_BG = (36, 48, 62)              # #24303E — карточка чуть светлее фона
+CARD_BORDER = (52, 66, 82)
+TEXT_PRIMARY = (245, 248, 250)
+TEXT_SECONDARY = (130, 145, 160)
+TEXT_ACCENT = (232, 102, 10)        # оранжевый акцент
+
+# Цвет фона силуэтов байков (нужен для корректного crop)
+BIKE_RAW_BG = (15, 25, 35)
+
+# Размеры карточек
 CARD_SIZE = 400
 GAP = 16
-PADDING = 24
+PADDING = 36
+PLATE_H = 84
+ACCENT_BAR_W = 4
+CORNER_RADIUS = 14
 
-BG_COLOR = (15, 25, 35)
-CARD_BG = (25, 35, 45)
-CARD_BORDER = (40, 50, 60)
-TEXT_PRIMARY = (220, 231, 240)
-TEXT_ACCENT = (232, 102, 10)
-ACCENT_LINE_C = (232, 102, 10)
+# Размеры хедера
+HEADER_PADDING_TOP = 50
+HEADER_PADDING_BOTTOM = 36
+HEADER_GAP_LABEL_TITLE = 10
+HEADER_GAP_TITLE_SUBTITLE = 14
 
-PLATE_H = 70
-CORNER_RADIUS = 12
 
-FONT_BOLD_PATH = None
-FONT_REGULAR_PATH = None
+# ============================================================================
+# МАППИНГИ
+# ============================================================================
 
 TYPE_SUBDIR = {
     "bike":    "bikes",
@@ -49,6 +66,56 @@ TYPE_SUBDIR = {
     "boot":    "boots",
 }
 
+TYPE_LABEL = {
+    "bike":   "ВЫБОР МОТОЦИКЛА",
+    "helmet": "ВЫБОР ШЛЕМА",
+    "jacket": "ВЫБОР КУРТКИ",
+    "suit":   "ВЫБОР КОМБИНЕЗОНА",
+    "glove":  "ВЫБОР ПЕРЧАТОК",
+    "boot":   "ВЫБОР БОТИНОК",
+}
+
+TYPE_TITLE_PLURAL = {
+    "bike":   "Мотоциклы",
+    "helmet": "Шлемы",
+    "jacket": "Куртки",
+    "suit":   "Комбинезоны",
+    "glove":  "Перчатки",
+    "boot":   "Ботинки",
+}
+
+MODEL_FORMS = ("модель", "модели", "моделей")
+COLOR_FORMS = ("цвет", "цвета", "цветов")
+
+
+# ============================================================================
+# ШРИФТЫ
+# ============================================================================
+
+def _load_font(size, bold=False):
+    candidates = [
+        "C:/Windows/Fonts/segoeuib.ttf" if bold else "C:/Windows/Fonts/segoeui.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf",
+    ]
+    for candidate in candidates:
+        try:
+            return ImageFont.truetype(candidate, size)
+        except OSError:
+            continue
+    return ImageFont.load_default()
+
+
+font_header_label    = _load_font(20, bold=True)
+font_header_title    = _load_font(48, bold=True)
+font_header_subtitle = _load_font(20, bold=False)
+font_brand           = _load_font(14, bold=True)
+font_model           = _load_font(24, bold=True)
+
+
+# ============================================================================
+# ХЕЛПЕРЫ
+# ============================================================================
 
 def _brand_dir(item_type: str, brand: str) -> Path:
     slug = brand.lower().replace(" ", "_")
@@ -57,29 +124,16 @@ def _brand_dir(item_type: str, brand: str) -> Path:
     return path
 
 
-# FONTS
-def _load_font(path, size):
-    candidates = [
-        path,
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "C:/Windows/Fonts/arial.ttf",
-    ]
-    for candidate in candidates:
-        if not candidate:
-            continue
-        try:
-            return ImageFont.truetype(candidate, size)
-        except OSError:
-            continue
-    return ImageFont.load_default()
+def _plural_ru(n: int, forms: tuple[str, str, str]) -> str:
+    """Возвращает правильную форму существительного: 1 модель / 2 модели / 5 моделей."""
+    n = abs(n)
+    if n % 10 == 1 and n % 100 != 11:
+        return forms[0]
+    if 2 <= n % 10 <= 4 and (n % 100 < 10 or n % 100 >= 20):
+        return forms[1]
+    return forms[2]
 
 
-font_brand = _load_font(FONT_REGULAR_PATH, 16)
-font_model = _load_font(FONT_BOLD_PATH, 22)
-
-
-# IMAGE LOADER
 def load_image(path: str) -> Image.Image:
     if not path:
         raise ValueError("Empty image path")
@@ -92,14 +146,20 @@ def load_image(path: str) -> Image.Image:
     full_path = BASE_DIR / Path(path)
     if not full_path.exists():
         raise FileNotFoundError(f"Not found: {full_path}")
-    # Закрываем file handle сразу — копируем в память
     with Image.open(full_path) as img:
         img.load()
         return img.copy()
 
 
-# RENDER HELPERS
-def _crop_to_content(img: Image.Image, bg_color=BG_COLOR, margin: int = 20) -> Image.Image:
+def _truncate(draw, text, font, max_w):
+    if draw.textlength(text, font=font) <= max_w:
+        return text
+    while draw.textlength(text + "...", font=font) > max_w and len(text) > 1:
+        text = text[:-1]
+    return text.rstrip() + "..."
+
+
+def _crop_to_content(img: Image.Image, bg_color=BIKE_RAW_BG, margin: int = 20) -> Image.Image:
     bg = Image.new("RGB", img.size, bg_color)
     diff = ImageChops.difference(img.convert("RGB"), bg)
     bbox = diff.convert("L").getbbox()
@@ -113,106 +173,172 @@ def _crop_to_content(img: Image.Image, bg_color=BG_COLOR, margin: int = 20) -> I
     return img.crop((x1, y1, x2, y2))
 
 
-def _fit_on_white(img: Image.Image, w: int, h: int) -> Image.Image:
+def _bike_silhouette_to_rgba(img: Image.Image, bg_color=BIKE_RAW_BG, threshold: int = 10) -> Image.Image:
+    """Делает фон силуэта байка прозрачным, чтобы он лёг на CARD_BG без видимой 'рамки'."""
+    rgb = img.convert("RGB")
+    bg = Image.new("RGB", rgb.size, bg_color)
+    diff = ImageChops.difference(rgb, bg).convert("L")
+    mask = diff.point(lambda p: 255 if p > threshold else 0)
+    rgba = rgb.convert("RGBA")
+    rgba.putalpha(mask)
+    return rgba
+
+
+def _fit_on(img: Image.Image, w: int, h: int, bg: tuple, crop: bool = False) -> Image.Image:
+    if crop:
+        img = _crop_to_content(img)
+        img = _bike_silhouette_to_rgba(img)  # bg → прозрачный, чтобы слиться с CARD_BG
     ratio = min(w / img.width, h / img.height) * 0.85
     nw, nh = int(img.width * ratio), int(img.height * ratio)
     img = img.resize((nw, nh), Image.LANCZOS)
 
-    bg = Image.new("RGB", (w, h), (255, 255, 255))
+    canvas = Image.new("RGB", (w, h), bg)
     x, y = (w - nw) // 2, (h - nh) // 2
 
     if img.mode == "RGBA":
-        bg.paste(img, (x, y), img)
+        canvas.paste(img, (x, y), img)
     else:
-        bg.paste(img, (x, y))
-    return bg
+        canvas.paste(img, (x, y))
+    return canvas
 
 
-def _fit_on_dark(img: Image.Image, w: int, h: int) -> Image.Image:
-    img = _crop_to_content(img)
-    ratio = min(w / img.width, h / img.height) * 0.85
-    nw, nh = int(img.width * ratio), int(img.height * ratio)
-    img = img.resize((nw, nh), Image.LANCZOS)
-
-    bg = Image.new("RGB", (w, h), BG_COLOR)
-    x, y = (w - nw) // 2, (h - nh) // 2
-
-    if img.mode == "RGBA":
-        bg.paste(img, (x, y), img)
-    else:
-        bg.paste(img, (x, y))
-    return bg
-
-
-def _truncate(draw, text, font, max_w):
-    if draw.textlength(text, font=font) <= max_w:
-        return text
-    while draw.textlength(text + "...", font=font) > max_w and len(text) > 1:
-        text = text[:-1]
-    return text.rstrip() + "..."
-
+# ============================================================================
+# КАРТОЧКА
+# ============================================================================
 
 def _draw_card(label_top: str, label_bottom: str, photo_path: str | None, dark_bg: bool = False) -> Image.Image:
-    card_color = BG_COLOR if dark_bg else (255, 255, 255)
-    card = Image.new("RGBA", (CARD_SIZE, CARD_SIZE), card_color)
-    draw = ImageDraw.Draw(card)
+    """Карточка: фото вверху + тёмная плашка с вертикальным акцентом и текстом снизу.
+    dark_bg=True — для байков (силуэты на тёмном фоне);
+    dark_bg=False — для экипа (фото на белом фоне)."""
+    card = Image.new("RGBA", (CARD_SIZE, CARD_SIZE), (0, 0, 0, 0))
 
     photo_h = CARD_SIZE - PLATE_H
+    photo_bg = CARD_BG if dark_bg else (255, 255, 255)
 
+    photo_canvas = Image.new("RGB", (CARD_SIZE, photo_h), photo_bg)
     if photo_path:
         try:
             photo = load_image(photo_path).convert("RGBA")
-            fitted = (_fit_on_dark if dark_bg else _fit_on_white)(photo, CARD_SIZE, photo_h)
-            card.paste(fitted, (0, 0))
+            fitted = _fit_on(photo, CARD_SIZE, photo_h, photo_bg, crop=dark_bg)
+            photo_canvas.paste(fitted, (0, 0))
         except Exception as e:
             print(f"Error loading image: {e}")
+    card.paste(photo_canvas, (0, 0))
 
-    draw.rectangle([(0, photo_h), (CARD_SIZE, CARD_SIZE)], fill=BG_COLOR)
-    draw.line([(0, photo_h), (CARD_SIZE, photo_h)], fill=TEXT_ACCENT, width=2)
+    # Плашка с текстом снизу
+    plate = Image.new("RGB", (CARD_SIZE, PLATE_H), CARD_BG)
+    pd = ImageDraw.Draw(plate)
 
-    text_w_limit = CARD_SIZE - 30
+    # Вертикальный акцент-бар слева
+    pd.rectangle([(0, 0), (ACCENT_BAR_W, PLATE_H)], fill=TEXT_ACCENT)
 
-    brand_txt = _truncate(draw, label_top.upper(), font_brand, text_w_limit)
-    draw.text((15, photo_h + 10), brand_txt, font=font_brand, fill=TEXT_ACCENT)
+    text_x = ACCENT_BAR_W + 16
+    text_w_limit = CARD_SIZE - text_x - 16
 
-    model_txt = _truncate(draw, label_bottom, font_model, text_w_limit)
-    draw.text((15, photo_h + 32), model_txt, font=font_model, fill=TEXT_PRIMARY)
+    brand_txt = _truncate(pd, label_top.upper(), font_brand, text_w_limit)
+    pd.text((text_x, 14), brand_txt, font=font_brand, fill=TEXT_ACCENT)
 
-    mask = Image.new("L", (CARD_SIZE, CARD_SIZE), 0)
-    mask_draw = ImageDraw.Draw(mask)
-    mask_draw.rounded_rectangle((0, 0, CARD_SIZE, CARD_SIZE), CORNER_RADIUS, fill=255)
+    model_txt = _truncate(pd, label_bottom, font_model, text_w_limit)
+    pd.text((text_x, 36), model_txt, font=font_model, fill=TEXT_PRIMARY)
 
-    final_card = Image.new("RGBA", (CARD_SIZE, CARD_SIZE), (0, 0, 0, 0))
-    final_card.paste(card, (0, 0), mask=mask)
+    card.paste(plate, (0, photo_h))
 
-    final_draw = ImageDraw.Draw(final_card)
-    final_draw.rounded_rectangle((0, 0, CARD_SIZE - 1, CARD_SIZE - 1), CORNER_RADIUS, outline=CARD_BORDER, width=1)
+    # Закругление углов через supersampling (4x → LANCZOS) — гладкие края без зубчиков
+    SS = 4
+    big_size = CARD_SIZE * SS
+    big_radius = CORNER_RADIUS * SS
 
-    return final_card
+    big_mask = Image.new("L", (big_size, big_size), 0)
+    ImageDraw.Draw(big_mask).rounded_rectangle((0, 0, big_size, big_size), big_radius, fill=255)
+    mask = big_mask.resize((CARD_SIZE, CARD_SIZE), Image.LANCZOS)
+
+    rounded = Image.new("RGBA", (CARD_SIZE, CARD_SIZE), (0, 0, 0, 0))
+    rounded.paste(card, (0, 0), mask=mask)
+
+    # Бордюр — тоже через supersampling, чтобы тонкая линия по дуге не "ступенчилась"
+    big_border = Image.new("RGBA", (big_size, big_size), (0, 0, 0, 0))
+    ImageDraw.Draw(big_border).rounded_rectangle(
+        (0, 0, big_size - 1, big_size - 1),
+        big_radius,
+        outline=CARD_BORDER,
+        width=SS,  # 1px в финальном = SS px в supersampled
+    )
+    border = big_border.resize((CARD_SIZE, CARD_SIZE), Image.LANCZOS)
+    rounded.alpha_composite(border)
+
+    return rounded
 
 
-# BUILD
+# ============================================================================
+# ХЕДЕР
+# ============================================================================
+
+def _measure_header_h() -> int:
+    """Оценка высоты хедера на основе метрик шрифтов."""
+    dummy = Image.new("RGB", (1, 1))
+    d = ImageDraw.Draw(dummy)
+    h_label = d.textbbox((0, 0), "X", font=font_header_label)[3]
+    h_title = d.textbbox((0, 0), "X", font=font_header_title)[3]
+    h_subtitle = d.textbbox((0, 0), "X", font=font_header_subtitle)[3]
+    return (
+        HEADER_PADDING_TOP + h_label
+        + HEADER_GAP_LABEL_TITLE + h_title
+        + HEADER_GAP_TITLE_SUBTITLE + h_subtitle
+        + HEADER_PADDING_BOTTOM
+    )
+
+
+def _draw_header(canvas: Image.Image, label: str, title: str, subtitle: str) -> None:
+    draw = ImageDraw.Draw(canvas)
+    x = PADDING
+    y = HEADER_PADDING_TOP
+
+    draw.text((x, y), label, font=font_header_label, fill=TEXT_ACCENT)
+    y = draw.textbbox((x, y), label, font=font_header_label)[3] + HEADER_GAP_LABEL_TITLE
+
+    draw.text((x, y), title, font=font_header_title, fill=TEXT_PRIMARY)
+    y = draw.textbbox((x, y), title, font=font_header_title)[3] + HEADER_GAP_TITLE_SUBTITLE
+
+    draw.text((x, y), subtitle, font=font_header_subtitle, fill=TEXT_SECONDARY)
+
+
+# ============================================================================
+# СБОРКА КОЛЛАЖА
+# ============================================================================
+
 class ItemView(NamedTuple):
     label_top: str
     label_bottom: str
     photo_path: str | None
 
 
-def _build_collage(items: list[ItemView], out_path: Path, dark_bg: bool = False) -> Path:
+def _build_collage(
+    items: list[ItemView],
+    out_path: Path,
+    header_label: str,
+    header_title: str,
+    header_subtitle: str,
+    dark_bg: bool = False,
+) -> Path:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     cols = 4 if len(items) > 9 else 3
     rows = -(-len(items) // cols)
-    w = cols * CARD_SIZE + (cols - 1) * GAP + PADDING * 2
-    h = rows * CARD_SIZE + (rows - 1) * GAP + PADDING * 2
 
-    canvas = Image.new("RGB", (w, h), BG_COLOR)
+    grid_w = cols * CARD_SIZE + (cols - 1) * GAP
+    grid_h = rows * CARD_SIZE + (rows - 1) * GAP
+
+    w = grid_w + PADDING * 2
+    header_h = _measure_header_h()
+    h = header_h + grid_h + PADDING
+
+    canvas = Image.new("RGB", (w, h), PAGE_BG)
+    _draw_header(canvas, header_label, header_title, header_subtitle)
 
     for idx, item in enumerate(items):
         col, row = idx % cols, idx // cols
         x = PADDING + col * (CARD_SIZE + GAP)
-        y = PADDING + row * (CARD_SIZE + GAP)
-
+        y = header_h + row * (CARD_SIZE + GAP)
         card_img = _draw_card(item.label_top, item.label_bottom, item.photo_path, dark_bg=dark_bg)
         canvas.paste(card_img, (x, y), card_img)
 
@@ -220,7 +346,10 @@ def _build_collage(items: list[ItemView], out_path: Path, dark_bg: bool = False)
     return out_path
 
 
-# PUBLIC API
+# ============================================================================
+# ПУБЛИЧНОЕ API
+# ============================================================================
+
 async def get_or_build_brand_collage(item_type: str, brand: str) -> Path:
     current_count, cached_file, cached_count = await db.get_brand_collage_state(item_type, brand)
 
@@ -240,8 +369,13 @@ async def get_or_build_brand_collage(item_type: str, brand: str) -> Path:
         out_path = _brand_dir(item_type, brand) / "models.jpg"
         dark_bg = False
 
+    n = len(items)
+    header_label = TYPE_LABEL[item_type]
+    header_title = f"{TYPE_TITLE_PLURAL[item_type]} {brand}"
+    header_subtitle = f"{n} {_plural_ru(n, MODEL_FORMS)}"
+
     def _generate():
-        return _build_collage(items, out_path, dark_bg=dark_bg)
+        return _build_collage(items, out_path, header_label, header_title, header_subtitle, dark_bg=dark_bg)
 
     path = await asyncio.get_running_loop().run_in_executor(None, _generate)
     await db.upsert_brand_collage(item_type, brand, str(path), current_count)
@@ -262,15 +396,23 @@ async def get_or_build_color_collage(item_type: str, brand: str, model_id: int, 
     slug = model_name.lower().replace(" ", "_")
     out_path = _brand_dir(item_type, brand) / f"colors_{slug}.jpg"
 
+    n = len(items)
+    header_label = "ВЫБОР ЦВЕТА"
+    header_title = f"{brand} {model_name}"
+    header_subtitle = f"{n} {_plural_ru(n, COLOR_FORMS)}"
+
     def _generate():
-        return _build_collage(items, out_path)
+        return _build_collage(items, out_path, header_label, header_title, header_subtitle)
 
     path = await asyncio.get_running_loop().run_in_executor(None, _generate)
     await db.upsert_color_collage(item_type, brand, model_id, str(path), current_count)
     return path
 
 
-# Ручной запуск
+# ============================================================================
+# РУЧНОЙ ЗАПУСК
+# ============================================================================
+
 async def run_collage_batch(type_filter: str | None, brand_filter: str | None, force: bool):
     import database as db
 
@@ -311,9 +453,7 @@ async def run_collage_batch(type_filter: str | None, brand_filter: str | None, f
                 print(f"  ❌  {item_type} / {brand} — {e}")
                 fail += 1
 
-            # цветовые коллажи (не для байков)
             if item_type != "bike":
-                raw_items = await db.get_items_for_collage(item_type, brand)
                 model_getter = {
                     "helmet": db.get_helmet_models,
                     "jacket": db.get_jacket_models,
@@ -336,7 +476,12 @@ async def run_collage_batch(type_filter: str | None, brand_filter: str | None, f
 
 def main():
     import argparse
-    import asyncio
+    import sys
+
+    # На Windows консоль может быть cp1251 — переключаем stdout в UTF-8,
+    # чтобы эмодзи и кириллица печатались корректно.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
 
     parser = argparse.ArgumentParser(description="Генерация коллажей экипировки и байков")
     parser.add_argument(
