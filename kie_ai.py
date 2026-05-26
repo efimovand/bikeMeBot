@@ -213,11 +213,13 @@ async def generate_for_user(
     ts = int(time.time())
     user_dir = BASE_DIR / "users" / str(tg_id)
 
+    # Image order matters for face retention:
+    # Images 1-3 = person (face identity first), Image 4 = bike, Image 5+ = gear
     items: list[tuple[str | Path, str | None]] = [
-        (bike_file_path, None),
-        (BASE_DIR / user.photoset.front_photo, f"{tg_id}_front_{ts}.jpg"),
-        (BASE_DIR / user.photoset.side_photo, f"{tg_id}_side_{ts}.jpg"),
-        (BASE_DIR / user.photoset.body_photo, f"{tg_id}_body_{ts}.jpg"),
+        (BASE_DIR / user.photoset.front_photo, f"{tg_id}_front_{ts}.jpg"),   # Image 1
+        (BASE_DIR / user.photoset.side_photo, f"{tg_id}_side_{ts}.jpg"),     # Image 2
+        (BASE_DIR / user.photoset.body_photo, f"{tg_id}_body_{ts}.jpg"),     # Image 3
+        (bike_file_path, None),                                               # Image 4
     ]
     if helmet_file_path:
         items.append((helmet_file_path, None))

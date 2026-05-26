@@ -9,6 +9,30 @@ _NO_GLOVE = "IMPORTANT: The person must be shown without motorcycle gloves, bare
 _NO_BOOT = "IMPORTANT: The person must be shown without motorcycle boots, in their own footwear."
 
 
+def build_image_index(user: User) -> str:
+    """Строит явный список что находится на каждом изображении в порядке загрузки.
+    Порядок должен совпадать с порядком items в kie_ai.generate_for_user:
+      1-3: человек, 4: байк, 5+: экип в том же порядке (helmet, jacket/suit, glove, boot).
+    """
+    idx = 1
+    lines = []
+    lines.append(f"Image {idx}: front-facing reference photo of the person — USE THIS IMAGE FOR FACE IDENTITY"); idx += 1
+    lines.append(f"Image {idx}: side profile reference photo of the same person — USE THIS IMAGE FOR FACE IDENTITY"); idx += 1
+    lines.append(f"Image {idx}: full-body reference photo of the same person — USE THIS IMAGE FOR BODY PROPORTIONS"); idx += 1
+    lines.append(f"Image {idx}: the motorcycle"); idx += 1
+    if user.helmet_file is not None:
+        lines.append(f"Image {idx}: reference photo of the motorcycle helmet"); idx += 1
+    if user.jacket_file is not None:
+        lines.append(f"Image {idx}: reference photo of the motorcycle jacket"); idx += 1
+    elif user.suit_file is not None:
+        lines.append(f"Image {idx}: reference photo of the motorcycle suit"); idx += 1
+    if user.glove_file is not None:
+        lines.append(f"Image {idx}: reference photo of the motorcycle gloves"); idx += 1
+    if user.boot_file is not None:
+        lines.append(f"Image {idx}: reference photo of the motorcycle boots"); idx += 1
+    return "\n".join(lines)
+
+
 def _format_dict_prompt(prompts: list, key: str, raw: str | None) -> str:
     """Безопасно применить шаблон из dictionary_prompt. Если нет — пустая строка."""
     if not prompts:
@@ -101,11 +125,7 @@ async def make_final_prompt(user: User) -> str:
         raise RuntimeError("No 'default' prompt in dictionary_prompt — cannot build final prompt")
 
     return default_prompts[0].text.format(
-        helmet_photo_mention=", a photo of a motorcycle helmet" if user.helmet_file is not None else "",
-        jacket_photo_mention=", a photo of a motorcycle jacket" if user.jacket_file is not None else "",
-        suit_photo_mention=", a photo of a motorcycle suit" if user.suit_file is not None else "",
-        glove_photo_mention=", a photo of motorcycle gloves" if user.glove_file is not None else "",
-        boot_photo_mention=", a photo of motorcycle boots" if user.boot_file is not None else "",
+        image_index=build_image_index(user),
         bike_prompt=bike_prompt,
         location_prompt=location_prompt,
         helmet_prompt=helmet_prompt,
