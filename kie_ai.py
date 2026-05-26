@@ -223,9 +223,11 @@ async def generate_for_user(
     ]
     if helmet_file_path:
         items.append((helmet_file_path, None))
+    # jacket and suit are mutually exclusive — keep image order in sync
+    # with build_image_index() in prompts.py
     if jacket_file_path:
         items.append((jacket_file_path, None))
-    if suit_file_path:
+    elif suit_file_path:
         items.append((suit_file_path, None))
     if glove_file_path:
         items.append((glove_file_path, None))

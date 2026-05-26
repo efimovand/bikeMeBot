@@ -34,9 +34,13 @@ def build_image_index(user: User) -> str:
 
 
 def _format_dict_prompt(prompts: list, key: str, raw: str | None) -> str:
-    """Безопасно применить шаблон из dictionary_prompt. Если нет — пустая строка."""
+    """Применить шаблон из dictionary_prompt. Если шаблона нет — ошибка,
+    чтобы не было silent failure (юзер выбрал экип, а в промпте о нём ни слова)."""
     if not prompts:
-        return ""
+        raise RuntimeError(
+            f"No dictionary_prompt template for key={key!r} — "
+            f"cannot build prompt for selected gear"
+        )
     return prompts[0].text.format(**{key: raw or ""})
 
 
@@ -65,9 +69,9 @@ async def make_final_prompt(user: User) -> str:
     # --- Байк + локация (всё уже эагерно загружено в user) ---
     raw_bike_prompt = user.bike_file.bike.prompt
     if user.location is not None:
-        location_prompt = user.location.prompt
+        location_prompt = user.location.prompt or user.bike_file.bike.location.prompt or ""
     else:
-        location_prompt = user.bike_file.bike.location.prompt
+        location_prompt = user.bike_file.bike.location.prompt or ""
     bike_prompt = f"Motorcycle ergonomics and scale: {raw_bike_prompt}" if raw_bike_prompt else ""
 
     # --- Шлем ---
