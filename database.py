@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import random
 import time
@@ -807,12 +808,22 @@ async def _get_bike_items_for_collage(brand: str):
 
         silhouette = _find_silhouette(model_dir, model_slug)
         if silhouette is None:
-            logger.warning(
-                "Missing silhouette for %s %s — run `python make_silhouettes.py` to generate.",
-                brand, bike.model,
+            dst = model_dir / f"{model_slug}_silhouette.jpg"
+            logger.info(
+                "Silhouette missing for %s %s — auto-generating...", brand, bike.model,
             )
-            items.append((bike.model, None))
-            continue
+            try:
+                from make_silhouettes import make_silhouette
+                await asyncio.get_event_loop().run_in_executor(
+                    None, make_silhouette, file_path, dst,
+                )
+                silhouette = dst
+            except Exception as exc:
+                logger.warning(
+                    "Failed to auto-generate silhouette for %s %s: %s", brand, bike.model, exc,
+                )
+                items.append((bike.model, None))
+                continue
 
         items.append((bike.model, str(silhouette.relative_to(base_dir))))
 
