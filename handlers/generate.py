@@ -17,7 +17,7 @@ router = Router()
 BASE = Path(settings.media_dir)
 TEST_MEDIA_BASE = Path(__file__).resolve().parent.parent / "media"  # TODO: убрать после тестов
 
-ESTIMATED_SECONDS = 80
+ESTIMATED_SECONDS = 180
 LOADER_INTERVAL = 6
 BAR_LENGTH = 10
 
