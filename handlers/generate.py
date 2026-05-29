@@ -158,6 +158,7 @@ async def run_generation(message_or_query, tg_id: int):
 
         stop_event = asyncio.Event()
         loader_task = asyncio.create_task(_run_loader(waiting_msg, stop_event))
+        waiting_msg_alive = True
 
         try:
             while True:
@@ -200,6 +201,7 @@ async def run_generation(message_or_query, tg_id: int):
                     await db.decrement_balance(tg_id)
 
                     await waiting_msg.delete()
+                    waiting_msg_alive = False
                     await target.answer_photo(
                         FSInputFile(result_path),
                         caption="🏍 Готово!",
@@ -222,7 +224,13 @@ async def run_generation(message_or_query, tg_id: int):
                     stop_event.set()
                     loader_task.cancel()
                     await db.update_generation_status(generation.id, "failed")
-                    await waiting_msg.edit_text(f"❌ Ошибка генерации: {e}")
+                    try:
+                        if waiting_msg_alive:
+                            await waiting_msg.edit_text(f"❌ Ошибка генерации: {e}")
+                        else:
+                            await target.answer(f"❌ Ошибка генерации: {e}")
+                    except Exception:
+                        pass
                     raise
         finally:
             _active_generations.discard(tg_id)
