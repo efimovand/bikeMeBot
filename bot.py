@@ -2,7 +2,6 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
-from aiohttp import ClientTimeout
 from aiogram.fsm.storage.memory import MemoryStorage
 from config import settings
 from handlers import bike, helmet, jacket, suit, glove, boot, photos, start, generate, location, payment
@@ -20,7 +19,7 @@ async def main():
     if reset_count:
         logging.info("Reset %d pending generation(s) to failed on startup", reset_count)
 
-    session = AiohttpSession(proxy=settings.proxy_tg_url, timeout=ClientTimeout(total=120))
+    session = AiohttpSession(proxy=settings.proxy_tg_url, timeout=120)
     bot = Bot(token=settings.bot_token, session=session)
 
     dp = Dispatcher(storage=MemoryStorage())
