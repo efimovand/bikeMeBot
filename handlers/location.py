@@ -3,6 +3,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 import database as db
+from config import is_admin
 from keyboards import LocationCallback, LocationResetCallback, MenuCallback, locations_keyboard, main_menu_keyboard
 from states import LocationStates
 from utils import config_text
@@ -42,6 +43,7 @@ async def on_location_reset(query: CallbackQuery, state: FSMContext):
             has_glove=user.glove_file_id is not None,
             has_boot=user.boot_file_id is not None,
             has_photos=photoset_is_complete(user.photoset),
+            is_admin=is_admin(user.tg_id),
         ),
         parse_mode="HTML",
     )
@@ -64,6 +66,7 @@ async def on_location_pick(query: CallbackQuery, callback_data: LocationCallback
             has_glove=user.glove_file_id is not None,
             has_boot=user.boot_file_id is not None,
             has_photos=photoset_is_complete(user.photoset),
+            is_admin=is_admin(user.tg_id),
         ),
         parse_mode="HTML",
     )

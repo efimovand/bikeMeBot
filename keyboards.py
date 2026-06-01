@@ -142,6 +142,7 @@ def main_menu_keyboard(
     has_glove: bool,
     has_boot: bool,
     has_photos: bool,
+    is_admin: bool = False,
 ) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
@@ -194,10 +195,13 @@ def main_menu_keyboard(
         callback_data=MenuCallback(action="photos")
     )
 
+    if is_admin:
+        builder.button(text="🛠 Управление", callback_data=MenuCallback(action="admin"))
+
     if has_bike and has_photos:
         builder.button(text="✨ Сгенерировать", callback_data=MenuCallback(action="generate"))
 
-    builder.adjust(
+    layout = [
         1,  # мотоцикл
         1,  # локация
         2 if has_helmet else 1,
@@ -207,8 +211,12 @@ def main_menu_keyboard(
         2 if has_boot else 1,
         1,  # пополнить баланс
         1,  # фото
-        1,  # генерация (если есть)
-    )
+    ]
+    if is_admin:
+        layout.append(1)  # управление
+    if has_bike and has_photos:
+        layout.append(1)  # генерация
+    builder.adjust(*layout)
     return builder.as_markup()
 
 
@@ -410,6 +418,14 @@ def generate_again_keyboard() -> InlineKeyboardMarkup:
         text="✨ Сгенерировать ещё раз",
         callback_data=MenuCallback(action="main_menu")
     )
+    return builder.as_markup()
+
+
+def admin_panel_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="🔄 Обновить", callback_data=MenuCallback(action="admin"))
+    builder.button(text="◀️ В меню", callback_data=MenuCallback(action="main_menu"))
+    builder.adjust(1)
     return builder.as_markup()
 
 

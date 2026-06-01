@@ -3,6 +3,7 @@ from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, FSInputFile
 import database as db
+from config import is_admin
 from config import settings
 from keyboards import MenuCallback, main_menu_keyboard
 from states import PhotoStates
@@ -158,6 +159,7 @@ async def got_body_photo(message: Message, state: FSMContext, bot: Bot):
                 has_glove=user.glove_file_id is not None,
                 has_boot=user.boot_file_id is not None,
                 has_photos=True,
+                is_admin=is_admin(user.tg_id),
             ),
             parse_mode="HTML",
         )

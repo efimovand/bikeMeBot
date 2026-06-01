@@ -4,7 +4,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.fsm.storage.memory import MemoryStorage
 from config import settings
-from handlers import bike, helmet, jacket, suit, glove, boot, photos, start, generate, location, payment
+from handlers import bike, helmet, jacket, suit, glove, boot, photos, start, generate, location, payment, admin
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,6 +34,7 @@ async def main():
     dp.include_router(photos.router)
     dp.include_router(generate.router)
     dp.include_router(payment.router)
+    dp.include_router(admin.router)
 
     logging.info("Bot started")
     try:

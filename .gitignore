@@ -8,6 +8,7 @@ __pycache__/
 
 media/users/
 media/collages/
+media/people
 
 check_files.py
 
@@ -16,5 +17,6 @@ check_files.py
 .DS_Store
 Thumbs.db
 /invited_users.json
+/admin_users.json
 
 db_dump.sql

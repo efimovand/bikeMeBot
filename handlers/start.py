@@ -1,10 +1,10 @@
 from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message, FSInputFile, InputMediaPhoto
+from aiogram.types import CallbackQuery, Message, FSInputFile, InputMediaPhoto, LinkPreviewOptions
 
 import database as db
-from config import load_invited_users, settings
+from config import load_invited_users, settings, is_admin
 from keyboards import (
     BikeBrandCallback,
     HelmetBrandCallback,
@@ -40,6 +40,7 @@ async def send_main_menu(message_or_query, user, state: FSMContext):
         has_glove=user.glove_file_id is not None,
         has_boot=user.boot_file_id is not None,
         has_photos=db.photoset_is_complete(user.photoset),
+        is_admin=is_admin(user.tg_id),
     )
 
     tg_id = user.tg_id
@@ -97,10 +98,12 @@ async def cmd_start(message: Message, state: FSMContext):
             "2. Выбираешь экипировку (по желанию)\n"
             "3. Загружаешь 3 своих фото\n"
             "4. ИИ генерирует фото, где ты уже на этом байке 🔥\n\n"
-            "Нажимая кнопку ниже, ты соглашаешься с политикой обработки данных."
+            "Нажимая кнопку ниже, ты соглашаешься с "
+            "<a href=\"https://telegra.ph/Politika-konfidencialnosti-BikeMe-04-23\">политикой конфиденциальности</a>."
         ),
         reply_markup=policy_keyboard(),
-        parse_mode="HTML"
+        parse_mode="HTML",
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
 
 

@@ -3,6 +3,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, FSInputFile
 
 import database as db
+from config import is_admin
 from collage import get_or_build_brand_collage, get_or_build_color_collage
 from keyboards import (
     BackCallback,
@@ -167,6 +168,7 @@ async def on_boot_color(query: CallbackQuery, callback_data: BootColorCallback, 
                 has_glove=user.glove_file_id is not None,
                 has_boot=True,
                 has_photos=photoset_is_complete(user.photoset),
+                is_admin=is_admin(user.tg_id),
             ),
             parse_mode="HTML",
         )
@@ -205,6 +207,7 @@ async def on_boot_remove(query: CallbackQuery, state: FSMContext):
             has_glove=user.glove_file_id is not None,
             has_boot=False,
             has_photos=photoset_is_complete(user.photoset),
+            is_admin=is_admin(user.tg_id),
         ),
         parse_mode="HTML",
     )

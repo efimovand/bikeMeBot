@@ -726,6 +726,45 @@ async def reset_pending_generations() -> int:
         return result.rowcount or 0
 
 
+async def count_generations_for_user(user_id: int) -> int:
+    """Сколько генераций уже было у пользователя (для детекта 'новый')."""
+    async with get_session() as session:
+        return await session.scalar(
+            select(func.count(Generation.id)).where(Generation.user_id == user_id)
+        ) or 0
+
+
+async def get_admin_stats() -> dict:
+    """Сводка для админ-панели: пользователи, генерации, аккаунты KIE."""
+    month_start = func.date_trunc("month", func.now())
+    async with get_session() as session:
+        total_users = await session.scalar(select(func.count(User.id))) or 0
+        new_users_month = await session.scalar(
+            select(func.count(User.id)).where(User.created_date >= month_start)
+        ) or 0
+        gens_total = await session.scalar(select(func.count(Generation.id))) or 0
+        gens_month = await session.scalar(
+            select(func.count(Generation.id)).where(Generation.created_date >= month_start)
+        ) or 0
+        gens_success_month = await session.scalar(
+            select(func.count(Generation.id)).where(
+                Generation.created_date >= month_start,
+                Generation.status == "success",
+            )
+        ) or 0
+        accounts = list((await session.execute(select(Account).order_by(Account.id))).scalars().all())
+
+    return {
+        "total_users": total_users,
+        "new_users_month": new_users_month,
+        "gens_total": gens_total,
+        "gens_month": gens_month,
+        "gens_success_month": gens_success_month,
+        "gens_failed_month": gens_month - gens_success_month,
+        "accounts": accounts,
+    }
+
+
 async def get_catalog_counts() -> dict[str, int]:
     async with get_session() as session:
         result = await session.execute(

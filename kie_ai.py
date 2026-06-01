@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 API_UPLOAD = "https://kieai.redpandaai.co/api/file-base64-upload"
 API_CREATE = "https://api.kie.ai/api/v1/jobs/createTask"
 API_STATUS = "https://api.kie.ai/api/v1/jobs/recordInfo"
+API_CREDIT = "https://api.kie.ai/api/v1/chat/credit"
 
 PROXY = settings.proxy_ai_url
 BASE_DIR = Path(settings.media_dir)
@@ -49,6 +50,23 @@ async def close_http_session() -> None:
 # ---------------------------------------------------------------------------
 # Загрузка файлов
 # ---------------------------------------------------------------------------
+
+async def get_account_credits(api_key: str) -> int | None:
+    """Запрашивает остаток кредитов аккаунта KIE.ai. None — если не удалось."""
+    s = get_http_session()
+    try:
+        async with s.get(
+            API_CREDIT,
+            proxy=PROXY,
+            headers={"Authorization": f"Bearer {api_key}"},
+        ) as resp:
+            data = await resp.json()
+        if data.get("code") == 200:
+            return data.get("data")
+    except Exception as exc:
+        logger.warning("Credit check failed: %s", exc)
+    return None
+
 
 async def upload_file(
     session: aiohttp.ClientSession,

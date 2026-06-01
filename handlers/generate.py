@@ -6,6 +6,7 @@ from aiogram.types import CallbackQuery, FSInputFile, Message
 from config import settings
 import database as db
 from handlers.start import send_main_menu
+from handlers.admin import notify_admins
 from kie_ai import generate_for_user, InsufficientCreditsError, ContentPolicyError
 from keyboards import MenuCallback, generate_again_keyboard, no_balance_keyboard, NoBalanceCallback
 from utils import safe_delete
@@ -81,6 +82,43 @@ async def _run_loader(message, stop_event: asyncio.Event):
             )
         except Exception:
             break
+
+
+def _admin_generation_summary(user, tg_id: int, is_new: bool) -> str:
+    """Краткая сводка о генерации для уведомления админам."""
+    bf = user.bike_file
+    bike = f"{bf.bike.brand} {bf.bike.model} / {bf.color.name}" if bf else "—"
+    loc = (user.location.description or user.location.name) if user.location else "по умолчанию"
+    helmet = (
+        f"{user.helmet_file.helmet.brand} {user.helmet_file.helmet.model} / {user.helmet_file.color.name}"
+        if user.helmet_file else "—"
+    )
+    if user.jacket_file:
+        body = (f"Куртка {user.jacket_file.jacket.brand} {user.jacket_file.jacket.model} "
+                f"/ {user.jacket_file.color.name}")
+    elif user.suit_file:
+        body = (f"Комбинезон {user.suit_file.suit.brand} {user.suit_file.suit.model} "
+                f"/ {user.suit_file.color.name}")
+    else:
+        body = "—"
+    glove = (
+        f"{user.glove_file.glove.brand} {user.glove_file.glove.model} / {user.glove_file.color.name}"
+        if user.glove_file else "—"
+    )
+    boot = (
+        f"{user.boot_file.boot.brand} {user.boot_file.boot.model} / {user.boot_file.color.name}"
+        if user.boot_file else "—"
+    )
+    head = "🆕 <b>Новый пользователь</b>" if is_new else "👤 Пользователь"
+    return (
+        f"{head} <code>{tg_id}</code> сгенерировал 🖼\n\n"
+        f"🏍 <b>Байк:</b> {bike}\n"
+        f"📍 <b>Локация:</b> {loc}\n"
+        f"🪖 <b>Шлем:</b> {helmet}\n"
+        f"🧥 <b>Верх:</b> {body}\n"
+        f"🧤 <b>Перчатки:</b> {glove}\n"
+        f"🥾 <b>Ботинки:</b> {boot}"
+    )
 
 
 async def run_generation(message_or_query, tg_id: int):
@@ -159,6 +197,7 @@ async def run_generation(message_or_query, tg_id: int):
         stop_event = asyncio.Event()
         loader_task = asyncio.create_task(_run_loader(waiting_msg, stop_event))
         waiting_msg_alive = True
+        is_new_user = await db.count_generations_for_user(user.id) == 0
 
         try:
             while True:
@@ -207,6 +246,14 @@ async def run_generation(message_or_query, tg_id: int):
                         caption="🏍 Готово!",
                         reply_markup=generate_again_keyboard(),
                     )
+                    try:
+                        await notify_admins(
+                            target.bot,
+                            _admin_generation_summary(user, tg_id, is_new_user),
+                            exclude_tg_id=tg_id,
+                        )
+                    except Exception:
+                        pass
                     return
 
                 except InsufficientCreditsError:
