@@ -12,14 +12,14 @@ _NO_BOOT = "IMPORTANT: The person must be shown without motorcycle boots, in the
 def build_image_index(user: User) -> str:
     """Строит явный список что находится на каждом изображении в порядке загрузки.
     Порядок должен совпадать с порядком items в kie_ai.generate_for_user:
-      1-3: человек, 4: байк, 5+: экип в том же порядке (helmet, jacket/suit, glove, boot).
+      1: байк, 2-4: человек, 5+: экип в том же порядке (helmet, jacket/suit, glove, boot).
     """
     idx = 1
     lines = []
+    lines.append(f"Image {idx}: the motorcycle"); idx += 1
     lines.append(f"Image {idx}: front-facing reference photo of the person — USE THIS IMAGE FOR FACE IDENTITY"); idx += 1
     lines.append(f"Image {idx}: side profile reference photo of the same person — USE THIS IMAGE FOR FACE IDENTITY"); idx += 1
     lines.append(f"Image {idx}: full-body reference photo of the same person — USE THIS IMAGE FOR BODY PROPORTIONS"); idx += 1
-    lines.append(f"Image {idx}: the motorcycle"); idx += 1
     if user.helmet_file is not None:
         lines.append(f"Image {idx}: reference photo of the motorcycle helmet"); idx += 1
     if user.jacket_file is not None:
