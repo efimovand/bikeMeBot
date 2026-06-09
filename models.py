@@ -371,6 +371,23 @@ class Generation(Base):
 
 
 # ---------------------------------------------------------------------------
+# Payment
+# ---------------------------------------------------------------------------
+
+class Payment(Base):
+    __tablename__ = "payment"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    created_date: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    user_tg_id: Mapped[int] = mapped_column(BigInteger)
+    # telegram_payment_charge_id — уникален, защищает от двойного начисления
+    # при повторной доставке апдейта successful_payment (например, после рестарта).
+    charge_id: Mapped[str] = mapped_column(String(255), unique=True)
+    stars: Mapped[int] = mapped_column(Integer)
+    generations: Mapped[int] = mapped_column(Integer)
+
+
+# ---------------------------------------------------------------------------
 # DictionaryPrompt
 # ---------------------------------------------------------------------------
 

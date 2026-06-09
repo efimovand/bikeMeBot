@@ -6,11 +6,12 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from config import settings
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload
 
 from models import (
-    Account, Generation, Location, DictionaryPrompt, Collage,
+    Account, Generation, Location, DictionaryPrompt, Collage, Payment,
     User, UserPhotoset,
     Bike, BikeColor, BikeFile,
     Helmet, HelmetColor, HelmetFile,
@@ -123,13 +124,32 @@ async def update_user_helmet_file(tg_id: int, helmet_file_id: int) -> None:
         )
 
 
-async def add_spent_stars(tg_id: int, amount: int) -> None:
-    async with get_session() as session:
-        await session.execute(
-            update(User)
-            .where(User.tg_id == tg_id)
-            .values(spent_stars=User.spent_stars + amount)
-        )
+async def apply_payment(tg_id: int, charge_id: str, stars: int, generations: int) -> int | None:
+    """Идемпотентно проводит успешный платёж в одной транзакции:
+    записывает Payment (unique по charge_id), пополняет balance и spent_stars.
+    Возвращает новый баланс или None, если этот charge_id уже был обработан."""
+    try:
+        async with get_session() as session:
+            session.add(Payment(
+                user_tg_id=tg_id,
+                charge_id=charge_id,
+                stars=stars,
+                generations=generations,
+            ))
+            await session.flush()  # IntegrityError здесь, если платёж уже проведён
+            result = await session.execute(
+                update(User)
+                .where(User.tg_id == tg_id)
+                .values(
+                    balance=User.balance + generations,
+                    spent_stars=User.spent_stars + stars,
+                )
+                .returning(User.balance)
+            )
+            return result.scalar_one()
+    except IntegrityError:
+        logger.info("Payment %s already processed — skipping", charge_id)
+        return None
 
 
 async def add_balance(tg_id: int, amount: int) -> int:

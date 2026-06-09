@@ -169,8 +169,19 @@ async def create_task(
 # Поллинг
 # ---------------------------------------------------------------------------
 
-async def poll_until_done(task_id: str, api_key: str, interval: int = 10) -> list[str]:
+# Максимум ждём результат генерации; дальше считаем задачу зависшей,
+# иначе поллинг крутится вечно и держит юзера в _active_generations до рестарта.
+POLL_TIMEOUT_SECONDS = 15 * 60
+
+
+async def poll_until_done(
+    task_id: str,
+    api_key: str,
+    interval: int = 10,
+    timeout: float = POLL_TIMEOUT_SECONDS,
+) -> list[str]:
     s = get_http_session()
+    deadline = time.monotonic() + timeout
     while True:
         async with s.get(
             API_STATUS,
@@ -184,6 +195,11 @@ async def poll_until_done(task_id: str, api_key: str, interval: int = 10) -> lis
         logger.info("State: %s", state)
 
         if state in ("waiting", "queuing", "generating"):
+            if time.monotonic() >= deadline:
+                raise RuntimeError(
+                    f"Generation timed out after {int(timeout)}s "
+                    f"(task {task_id}, last state: {state})"
+                )
             await asyncio.sleep(interval)
             continue
         if state == "fail":

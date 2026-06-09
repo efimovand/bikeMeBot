@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import F, Router
 from aiogram.types import (
     CallbackQuery,
@@ -10,7 +12,9 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
 
 import database as db
+from handlers.admin import notify_admins
 
+logger = logging.getLogger(__name__)
 router = Router()
 
 # ---------------------------------------------------------------------------
@@ -96,18 +100,57 @@ async def on_pre_checkout(pre_checkout: PreCheckoutQuery):
 # Успешная оплата → зачислить генерации
 # ---------------------------------------------------------------------------
 
+PAYMENT_PROBLEM_TEXT = (
+    "⚠️ Оплата получена, но при начислении произошла ошибка.\n"
+    "Администратор уже уведомлён и начислит генерации вручную."
+)
+
+
 @router.message(F.successful_payment)
 async def on_successful_payment(message: Message):
-    payload = message.successful_payment.invoice_payload
+    sp = message.successful_payment
+    tg_id = message.from_user.id
+    charge_id = sp.telegram_payment_charge_id
+    payload = sp.invoice_payload
+
     try:
         _, stars_str, gens_str = payload.split(":")
         stars = int(stars_str)
         gens = int(gens_str)
     except ValueError:
+        # Деньги списаны, а сколько начислять — непонятно. Молчать нельзя:
+        # сообщаем юзеру и зовём админов с charge_id для ручного начисления.
+        logger.error("Bad invoice payload %r (charge_id=%s, tg_id=%s)", payload, charge_id, tg_id)
+        await notify_admins(
+            message.bot,
+            "🚨 <b>Платёж с нераспознанным payload!</b>\n"
+            f"Пользователь: <code>{tg_id}</code>\n"
+            f"Сумма: {sp.total_amount} {sp.currency}\n"
+            f"Payload: <code>{payload}</code>\n"
+            f"charge_id: <code>{charge_id}</code>\n"
+            "Начислите генерации вручную.",
+        )
+        await message.answer(PAYMENT_PROBLEM_TEXT)
         return
 
-    new_balance = await db.add_balance(message.from_user.id, gens)
-    await db.add_spent_stars(message.from_user.id, stars)
+    try:
+        new_balance = await db.apply_payment(tg_id, charge_id, stars, gens)
+    except Exception:
+        logger.exception("apply_payment failed (charge_id=%s, tg_id=%s)", charge_id, tg_id)
+        await notify_admins(
+            message.bot,
+            "🚨 <b>Не удалось провести оплаченный платёж!</b>\n"
+            f"Пользователь: <code>{tg_id}</code>\n"
+            f"Пакет: {gens} генераций за {stars} ⭐️\n"
+            f"charge_id: <code>{charge_id}</code>\n"
+            "Начислите генерации вручную.",
+        )
+        await message.answer(PAYMENT_PROBLEM_TEXT)
+        return
+
+    if new_balance is None:
+        # Повторная доставка апдейта (например, после рестарта) — уже начислено.
+        return
 
     plural = (
         "генерация" if gens == 1
@@ -118,6 +161,6 @@ async def on_successful_payment(message: Message):
     await message.answer(
         f"✅ Оплата прошла успешно!\n\n"
         f"Начислено: <b>{gens} {plural}</b>\n"
-        f"Текущий баланс: <b>{new_balance} ⭐️</b>",
+        f"Текущий баланс: <b>{new_balance}</b>",
         parse_mode="HTML",
     )
