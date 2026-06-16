@@ -1,6 +1,8 @@
 import asyncio
 import html
+import logging
 from pathlib import Path
+import aiohttp
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, FSInputFile, Message
@@ -15,6 +17,8 @@ from prompts import make_final_prompt
 from utils import _config_msg_ids
 
 
+logger = logging.getLogger(__name__)
+
 router = Router()
 BASE = Path(settings.media_dir)
 TEST_MEDIA_BASE = Path(__file__).resolve().parent.parent / "media"  # TODO: убрать после тестов
@@ -22,6 +26,11 @@ TEST_MEDIA_BASE = Path(__file__).resolve().parent.parent / "media"  # TODO: уб
 ESTIMATED_SECONDS = 180
 LOADER_INTERVAL = 6
 BAR_LENGTH = 10
+
+# Транзиентные сетевые ошибки (таймаут соединения к kie.ai и т.п.) ретраим
+# молча, без списания и без сообщений юзеру. Лоадер при этом продолжает крутиться.
+MAX_TRANSIENT_RETRIES = 2
+TRANSIENT_RETRY_DELAY = 3  # секунд между попытками
 
 _active_generations: set[int] = set()
 
@@ -215,6 +224,7 @@ async def run_generation(message_or_query, tg_id: int):
             loader_task = asyncio.create_task(_run_loader(waiting_msg, stop_event))
             waiting_msg_alive = True
             is_new_user = await db.count_generations_for_user(user.id) == 0
+            transient_retries = 0
 
             try:
                 while True:
@@ -290,6 +300,44 @@ async def run_generation(message_or_query, tg_id: int):
                         loader_task.cancel()
                         await db.update_generation_status(generation.id, "failed")
                         await waiting_msg.edit_text("❌ Изображение не прошло проверку контента.")
+                        return
+
+                    except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                        # Транзиентная сетевая ошибка (таймаут соединения к kie.ai и т.п.).
+                        # Молча ретраим без списания: юзеру ничего не пишем, лоадер крутится дальше.
+                        await db.update_generation_status(generation.id, "failed")
+                        transient_retries += 1
+                        logger.warning(
+                            "Transient network error on generation #%s (attempt %d/%d) for tg_id=%s: %s",
+                            generation.id, transient_retries, MAX_TRANSIENT_RETRIES, tg_id, e,
+                        )
+                        if transient_retries <= MAX_TRANSIENT_RETRIES:
+                            await asyncio.sleep(TRANSIENT_RETRY_DELAY)
+                            continue
+                        # Ретраи исчерпаны — ведём себя как при обычной ошибке.
+                        stop_event.set()
+                        loader_task.cancel()
+                        try:
+                            await notify_admins(
+                                target.bot,
+                                f"🚨 Генерация #{generation.id} не удалась после "
+                                f"{MAX_TRANSIENT_RETRIES} сетевых ретраев, "
+                                f"пользователь <code>{tg_id}</code>:\n"
+                                f"<pre>{html.escape(str(e)[:1500])}</pre>",
+                            )
+                        except Exception:
+                            pass
+                        error_text = (
+                            "❌ Не получилось сгенерировать изображение. "
+                            "Попробуйте ещё раз чуть позже — генерация не списана."
+                        )
+                        try:
+                            if waiting_msg_alive:
+                                await waiting_msg.edit_text(error_text)
+                            else:
+                                await target.answer(error_text)
+                        except Exception:
+                            pass
                         return
 
                     except Exception as e:
